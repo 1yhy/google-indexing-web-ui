@@ -5,14 +5,18 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/1yhy/google-indexing-web-ui/blob/main/LICENSE">
-    <img alt="License" src="https://img.shields.io/github/license/1yhy/google-indexing-web-ui?color=blue"></a>
-  <a href="https://github.com/1yhy/google-indexing-web-ui/releases">
-    <img alt="Release" src="https://img.shields.io/github/v/release/1yhy/google-indexing-web-ui?color=blue"></a>
-  <a href="https://hub.docker.com/r/yhy20010203360/google-indexing-web-ui">
-    <img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/yhy20010203360/google-indexing-web-ui?color=blue"></a>
-  <a href="https://github.com/1yhy/google-indexing-web-ui/stargazers">
-    <img alt="GitHub stars" src="https://img.shields.io/github/stars/1yhy/google-indexing-web-ui?style=flat"></a>
+  <a href="https://nodejs.org/en/about/releases/">
+    <img alt="Node.js" src="https://img.shields.io/badge/Node.js-v18-339933?logo=node.js&logoColor=white"></a>
+  <a href="https://pnpm.io/">
+    <img alt="PNPM" src="https://img.shields.io/badge/PNPM-v8-F69220?logo=pnpm&logoColor=white"></a>
+  <a href="https://www.postgresql.org/">
+    <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-v14-4169E1?logo=postgresql&logoColor=white"></a>
+  <a href="https://nextjs.org/">
+    <img alt="Next.js" src="https://img.shields.io/badge/Next.js-14-000000?logo=next.js&logoColor=white"></a>
+  <a href="https://www.typescriptlang.org/">
+    <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white"></a>
+  <a href="https://tailwindcss.com/">
+    <img alt="Tailwind CSS" src="https://img.shields.io/badge/Tailwind_CSS-3.x-38B2AC?logo=tailwind-css&logoColor=white"></a>
 </p>
 
 <p align="center">
