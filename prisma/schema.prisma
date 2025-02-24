@@ -1,0 +1,134 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl"]
+  engineType    = "binary"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// NextAuth.js 所需的模型
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  apps         App[]     // 用户关联的应用
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model App {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  domain      String
+  appEmail    String
+  jsonKey     String    // 加密存储的service_account.json内容
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  userId      String    // 添加用户关联，暂时设为可选
+  user        User      @relation(fields: [userId], references: [id])
+
+  // 添加服务账号关联
+  serviceAccountId String?
+  serviceAccount  ServiceAccount? @relation(fields: [serviceAccountId], references: [id])
+
+  // 添加日志关联
+  logs        Log[]
+  urlCaches   UrlCache[]
+  indexLogs   IndexLog[]
+
+  @@index([domain])
+  @@index([userId])
+}
+
+model ServiceAccount {
+  id          String   @id @default(cuid())
+  name        String
+  clientEmail String
+  privateKey  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  apps        App[]
+}
+
+model Log {
+  id        String   @id @default(cuid())
+  appId     String
+  type      String
+  message   String
+  data      Json?
+  timestamp DateTime @default(now())
+
+  app       App      @relation(fields: [appId], references: [id])
+
+  @@index([timestamp])
+}
+
+model IndexLog {
+  id          String    @id @default(cuid())
+  appId       String
+  url         String
+  status      String    // SUCCESS, FAILED, PENDING
+  message     String?
+  type        String    @default("info")  // info, error, success, progress
+  timestamp   DateTime  @default(now())
+  batchId     String?   @default(cuid())  // 用于分组同一批次的日志
+  app         App       @relation(fields: [appId], references: [id])
+
+  @@index([batchId])
+  @@index([timestamp])
+}
+
+model UrlCache {
+  id            String   @id @default(cuid())
+  url           String
+  status        String
+  lastCheckedAt DateTime
+  appId         String
+  app           App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+
+  @@unique([url, appId])
+  @@index([appId])
+  @@index([url])
+}

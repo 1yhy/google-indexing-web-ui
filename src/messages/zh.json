@@ -1,0 +1,139 @@
+{
+  "app": {
+    "title": "Google 索引管理工具",
+    "description": "一个用于管理 Google 索引的工具",
+    "addApp": "添加应用",
+    "pleaseLogin": "请先登录",
+    "pleaseAddApp": "请先添加应用",
+    "loading": "加载中..."
+  },
+  "auth": {
+    "loginTitle": "注册或登录",
+    "emailPlaceholder": "输入电子邮箱注册或登录",
+    "orLoginWith": "或使用以下方式登录",
+    "googleLogin": "使用 Google 登录",
+    "logout": "退出登录",
+    "error": "认证错误",
+    "errors": {
+      "oauthCallback": "Google 认证回调失败，请检查您的 Google 账号设置或稍后重试",
+      "oauthSignin": "Google 登录失败，请稍后重试",
+      "callback": "认证回调处理失败，请稍后重试",
+      "unknown": "发生未知错误，请稍后重试"
+    }
+  },
+  "apps": {
+    "title": "应用管理",
+    "name": "名称",
+    "domain": "域名",
+    "createdAt": "创建时间",
+    "actions": "操作",
+    "delete": "删除",
+    "edit": "编辑",
+    "addNew": "添加新应用",
+    "loadError": "获取应用列表失败",
+    "checkConnection": "请检查数据库连接并重试",
+    "searchPlaceholder": "搜索应用...",
+    "selectToDelete": "请选择要删除的应用",
+    "deleteFailed": "删除失败",
+    "deleteSuccess": "删除成功",
+    "deleting": "删除中...",
+    "deleteSelected": "删除选中",
+    "confirmDelete": "确认删除",
+    "deleteWarning": "您确定要删除选中的 {count} 个应用吗？此操作将同时删除所有相关的日志和缓存数据，且不可恢复。",
+    "noMatchingApps": "没有找到匹配的应用",
+    "noApps": "暂无应用数据",
+    "appEmail": "应用邮箱",
+    "description": "描述",
+    "jsonKey": "服务账号凭据",
+    "namePlaceholder": "输入应用名称",
+    "domainPlaceholder": "example.com",
+    "appEmailPlaceholder": "输入服务账号邮箱",
+    "descriptionPlaceholder": "输入应用描述（可选）",
+    "jsonKeyPlaceholder": "粘贴 service_account.json 的内容",
+    "add": "添加应用",
+    "adding": "添加中...",
+    "addSuccess": "应用添加成功",
+    "addFailed": "添加应用失败",
+    "invalidJsonFormat": "服务账号凭据必须是有效的 JSON 格式",
+    "domainHelp": "输入需要索引的网站域名，不需要包含 http:// 或 https://",
+    "appEmailHelp": "从 Google API Console 获取的服务账号邮箱",
+    "jsonKeyHelp": "将 Google Search Console 服务账号的 JSON 凭据文件内容粘贴到此处",
+    "errors": {
+      "nameRequired": "请输入应用名称",
+      "domainRequired": "请输入域名",
+      "invalidEmail": "请输入有效的邮箱地址",
+      "jsonKeyRequired": "请输入服务账号凭据"
+    }
+  },
+  "logs": {
+    "title": "索引历史",
+    "batchId": "批次ID",
+    "batchIdDesc": "用于标识一次索引任务的唯一ID",
+    "submitTime": "提交时间",
+    "totalDesc": "本次任务处理的URL总数",
+    "indexedDesc": "已被 Google 成功收录的URL数量",
+    "submittedDesc": "已提交给 Google 但尚未收录的URL数量",
+    "crawledDesc": "Google 已爬取但尚未收录的URL数量",
+    "errorDesc": "处理失败的URL数量",
+    "viewDetails": "查看详情",
+    "status": {
+      "total": "总计",
+      "indexed": "已索引",
+      "submitted": "已提交",
+      "crawled": "已爬取",
+      "error": "错误",
+      "unknown": "未知"
+    },
+    "type": {
+      "info": "信息",
+      "error": "错误",
+      "warning": "警告"
+    }
+  },
+  "indexing": {
+    "title": "索引管理",
+    "selectApp": "选择应用",
+    "selectAppPlaceholder": "选择要索引的应用",
+    "enterUrls": "输入网址",
+    "urlsPlaceholder": "如果需要索引特定的 URL，请在这里输入，每行一个。例如：\nhttps://example.com/page1\nhttps://example.com/page2\n\n如果不输入，系统会自动从 Sitemap 获取所有 URLs",
+    "submit": "开始索引",
+    "processing": "处理中...",
+    "saveLog": "保存日志",
+    "viewHistory": "查看历史",
+    "processLogs": "处理日志",
+    "stats": {
+      "total": "总计",
+      "indexed": "已索引",
+      "submitted": "已提交",
+      "crawled": "已爬取",
+      "unknown": "未知"
+    },
+    "logs": {
+      "starting": "开始处理..."
+    },
+    "errors": {
+      "selectApp": "请选择要索引的应用",
+      "invalidUrls": "以下 URL 格式无效：\n{urls}",
+      "sseError": "与服务器的连接已断开",
+      "submitFailed": "提交失败"
+    }
+  },
+  "common": {
+    "error": "错误",
+    "success": "成功",
+    "warning": "警告",
+    "info": "信息",
+    "confirm": "确认",
+    "cancel": "取消",
+    "save": "保存",
+    "delete": "删除",
+    "edit": "编辑",
+    "add": "添加",
+    "search": "搜索",
+    "noData": "暂无数据",
+    "loading": "加载中...",
+    "prevPage": "上一页",
+    "nextPage": "下一页",
+    "pageInfo": "第 {current} 页 / 共 {total} 页"
+  }
+}

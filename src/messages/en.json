@@ -1,0 +1,139 @@
+{
+  "app": {
+    "title": "Google Indexing Web UI",
+    "description": "A tool for managing Google indexing",
+    "addApp": "Add App",
+    "pleaseLogin": "Please Login",
+    "pleaseAddApp": "Please Add an App First",
+    "loading": "Loading..."
+  },
+  "auth": {
+    "loginTitle": "Sign Up or Login",
+    "emailPlaceholder": "Enter email to sign up or login",
+    "orLoginWith": "Or login with",
+    "googleLogin": "Login with Google",
+    "logout": "Logout",
+    "error": "Authentication Error",
+    "errors": {
+      "oauthCallback": "Google authentication callback failed. Please check your Google account settings or try again later",
+      "oauthSignin": "Google sign-in failed. Please try again later",
+      "callback": "Authentication callback processing failed. Please try again later",
+      "unknown": "An unknown error occurred. Please try again later"
+    }
+  },
+  "apps": {
+    "title": "Apps",
+    "name": "Name",
+    "domain": "Domain",
+    "createdAt": "Created At",
+    "actions": "Actions",
+    "delete": "Delete",
+    "edit": "Edit",
+    "addNew": "Add New App",
+    "loadError": "Failed to load apps list",
+    "checkConnection": "Please check database connection and try again",
+    "searchPlaceholder": "Search apps...",
+    "selectToDelete": "Please select apps to delete",
+    "deleteFailed": "Delete failed",
+    "deleteSuccess": "Delete successful",
+    "deleting": "Deleting...",
+    "deleteSelected": "Delete Selected",
+    "confirmDelete": "Confirm Delete",
+    "deleteWarning": "Are you sure you want to delete {count} selected apps? This action will also delete all related logs and cache data, and cannot be undone.",
+    "noMatchingApps": "No matching apps found",
+    "noApps": "No apps data",
+    "appEmail": "App Email",
+    "description": "Description",
+    "jsonKey": "Service Account Key",
+    "namePlaceholder": "Enter app name",
+    "domainPlaceholder": "example.com",
+    "appEmailPlaceholder": "Enter service account email",
+    "descriptionPlaceholder": "Enter app description (optional)",
+    "jsonKeyPlaceholder": "Paste service_account.json content",
+    "add": "Add App",
+    "adding": "Adding...",
+    "addSuccess": "App added successfully",
+    "addFailed": "Failed to add app",
+    "invalidJsonFormat": "Service account key must be a valid JSON format",
+    "domainHelp": "Enter the domain name to be indexed, without http:// or https://",
+    "appEmailHelp": "Service account email obtained from Google API Console",
+    "jsonKeyHelp": "Paste the JSON credentials file content of your Google Search Console service account here",
+    "errors": {
+      "nameRequired": "Please enter app name",
+      "domainRequired": "Please enter domain",
+      "invalidEmail": "Please enter a valid email address",
+      "jsonKeyRequired": "Please enter service account key"
+    }
+  },
+  "logs": {
+    "title": "Indexing History",
+    "batchId": "Batch ID",
+    "batchIdDesc": "Unique identifier for an indexing task",
+    "submitTime": "Submit Time",
+    "totalDesc": "Total number of URLs processed in this task",
+    "indexedDesc": "Number of URLs successfully indexed by Google",
+    "submittedDesc": "Number of URLs submitted to Google but not yet indexed",
+    "crawledDesc": "Number of URLs crawled by Google but not yet indexed",
+    "errorDesc": "Number of URLs that failed to process",
+    "viewDetails": "View Details",
+    "status": {
+      "total": "Total",
+      "indexed": "Indexed",
+      "submitted": "Submitted",
+      "crawled": "Crawled",
+      "error": "Error",
+      "unknown": "Unknown"
+    },
+    "type": {
+      "info": "Info",
+      "error": "Error",
+      "warning": "Warning"
+    }
+  },
+  "indexing": {
+    "title": "Indexing",
+    "selectApp": "Select App",
+    "selectAppPlaceholder": "Select an app to index",
+    "enterUrls": "Enter URLs",
+    "urlsPlaceholder": "Enter specific URLs to index, one per line. For example:\nhttps://example.com/page1\nhttps://example.com/page2\n\nIf left empty, the system will automatically fetch all URLs from Sitemap",
+    "submit": "Start Indexing",
+    "processing": "Processing...",
+    "saveLog": "Save Log",
+    "viewHistory": "View History",
+    "processLogs": "Process Logs",
+    "stats": {
+      "total": "Total",
+      "indexed": "Indexed",
+      "submitted": "Submitted",
+      "crawled": "Crawled",
+      "unknown": "Unknown"
+    },
+    "logs": {
+      "starting": "Starting process..."
+    },
+    "errors": {
+      "selectApp": "Please select an app to index",
+      "invalidUrls": "The following URLs are invalid:\n{urls}",
+      "sseError": "Connection to server lost",
+      "submitFailed": "Submission failed"
+    }
+  },
+  "common": {
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning",
+    "info": "Info",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "noData": "No Data",
+    "loading": "Loading...",
+    "prevPage": "Previous",
+    "nextPage": "Next",
+    "pageInfo": "Page {current} of {total}"
+  }
+}

@@ -1,0 +1,32 @@
+# 依赖
+node_modules
+.pnpm-store
+
+# 构建输出
+.next
+out
+dist
+build
+
+# 开发文件
+.git
+.github
+.vscode
+.idea
+*.log
+.env*
+!.env.example
+
+# 测试文件
+__tests__
+test
+tests
+coverage
+
+# 其他
+.DS_Store
+README.md
+CHANGELOG.md
+docker-compose.yml
+Dockerfile
+.dockerignore

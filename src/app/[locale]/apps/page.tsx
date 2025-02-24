@@ -1,0 +1,58 @@
+import { prisma } from "@/lib/prisma";
+import { auth } from "@/auth";
+import AppsClient from "@/components/apps/apps-client";
+import { getTranslations } from "next-intl/server";
+
+export const dynamic = "force-dynamic";
+
+export default async function AppsPage() {
+  const session = await auth();
+  const t = await getTranslations();
+
+  try {
+    const apps = session?.user
+      ? await prisma.app.findMany({
+          where: {
+            userId: session.user.id,
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+          select: {
+            id: true,
+            name: true,
+            domain: true,
+            appEmail: true,
+            description: true,
+            createdAt: true,
+          },
+        })
+      : [];
+
+    // 转换日期为 ISO 字符串
+    const formattedApps = apps.map((app) => ({
+      ...app,
+      createdAt: app.createdAt.toISOString(),
+    }));
+
+    return (
+      <div className="container mx-auto max-w-[1200px]">
+        <AppsClient apps={formattedApps} />
+      </div>
+    );
+  } catch (error) {
+    console.error("获取应用列表失败:", error);
+    return (
+      <div className="container mx-auto max-w-[1200px]">
+        <div className="p-6">
+          <div className="p-4 bg-red-50 rounded-md border border-red-200">
+            <h3 className="text-sm font-medium text-red-800">{t("apps.loadError")}</h3>
+            <p className="mt-2 text-sm text-red-700">
+              {error instanceof Error ? error.message : t("apps.checkConnection")}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
