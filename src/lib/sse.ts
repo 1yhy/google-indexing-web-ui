@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { t } from "@/i18n";
 
-export type LogType = "info" | "error" | "success" | "progress";
+export type LogType = "info" | "error" | "success" | "progress" | "warning";
 
 export interface LogMessage {
   type: LogType;
@@ -29,7 +30,7 @@ export class SSEHandler {
     }, 100); // 每 100ms 刷新一次消息队列
   }
 
-  private flushMessages() {
+  private async flushMessages() {
     if (this.messageQueue.length === 0) return;
 
     const messages = this.messageQueue.splice(0);
@@ -44,12 +45,12 @@ export class SSEHandler {
           }${message.data ? ` ${JSON.stringify(message.data)}` : ""}`,
         );
       } catch (error) {
-        console.error("发送 SSE 消息失败:", error);
+        console.error(t("common.errors.sseSendFailed"), error);
       }
     }
   }
 
-  send(type: LogType, message: string, data?: any) {
+  async send(type: LogType, message: string, data?: any) {
     if (this.isClosed) return;
 
     const event = {
@@ -64,7 +65,7 @@ export class SSEHandler {
       this.messages.push(event);
       this.messageQueue.push(event);
     } catch (error) {
-      console.error("发送 SSE 消息失败:", error);
+      console.error(t("common.errors.sseSendFailed"), error);
     }
   }
 
@@ -72,15 +73,18 @@ export class SSEHandler {
     return this.messages;
   }
 
-  close() {
+  async close() {
     if (this.isConnectionClosed()) return;
 
     try {
       this.isClosed = true;
-      this.flushMessages(); // 确保所有消息都被发送
+      await this.flushMessages(); // 确保所有消息都被发送
+      if (this.flushInterval) {
+        clearInterval(this.flushInterval);
+      }
       this.controller.close();
     } catch (error) {
-      console.error("关闭 SSE 连接失败:", error);
+      console.error(t("common.errors.sseCloseFailed"), error);
     }
   }
 
@@ -98,10 +102,10 @@ export function createSSEResponse(handler: (sse: SSEHandler) => Promise<void>): 
       try {
         await handler(sse);
       } catch (error) {
-        console.error("SSE 处理器执行失败:", error);
+        console.error(t("common.errors.sseHandlerFailed"), error);
         if (!sse.isConnectionClosed()) {
-          sse.send("error", error instanceof Error ? error.message : "未知错误");
-          sse.close();
+          await sse.send("error", error instanceof Error ? error.message : t("common.errors.unknown"));
+          await sse.close();
         }
       }
     },
@@ -110,7 +114,9 @@ export function createSSEResponse(handler: (sse: SSEHandler) => Promise<void>): 
   return new NextResponse(stream, {
     headers: {
       "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      "Pragma": "no-cache",
+      "Expires": "0",
       Connection: "keep-alive",
     },
   });

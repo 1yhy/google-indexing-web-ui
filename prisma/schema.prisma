@@ -66,7 +66,7 @@ model App {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   userId      String    // 添加用户关联，暂时设为可选
-  user        User      @relation(fields: [userId], references: [id])
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // 添加服务账号关联
   serviceAccountId String?
@@ -76,6 +76,7 @@ model App {
   logs        Log[]
   urlCaches   UrlCache[]
   indexLogs   IndexLog[]
+  batchStats  BatchStats[]
 
   @@index([domain])
   @@index([userId])
@@ -131,4 +132,21 @@ model UrlCache {
   @@unique([url, appId])
   @@index([appId])
   @@index([url])
+}
+
+model BatchStats {
+  id        String   @id @default(cuid())
+  batchId   String   @unique
+  appId     String
+  total     Int      @default(0)
+  indexed   Int      @default(0)
+  submitted Int      @default(0)
+  crawled   Int      @default(0)
+  error     Int      @default(0)
+  unknown   Int      @default(0)
+  timestamp DateTime @default(now())
+  app       App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+
+  @@index([appId])
+  @@index([timestamp])
 }

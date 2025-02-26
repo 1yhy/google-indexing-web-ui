@@ -62,7 +62,11 @@
       "nameRequired": "Please enter app name",
       "domainRequired": "Please enter domain",
       "invalidEmail": "Please enter a valid email address",
-      "jsonKeyRequired": "Please enter service account key"
+      "jsonKeyRequired": "Please enter service account key",
+      "getFailed": "Failed to retrieve apps list",
+      "missingFields": "Please enter all required fields",
+      "invalidCredentials": "Invalid service account credentials",
+      "invalidJsonFormat": "Invalid JSON format for service account credentials"
     }
   },
   "logs": {
@@ -88,6 +92,67 @@
       "info": "Info",
       "error": "Error",
       "warning": "Warning"
+    },
+    "starting": "Starting process...",
+    "site_processing": "🔎 Processing site: {siteUrl}",
+    "urls_found": "👉 Found {count} URLs to process",
+    "batch_processing": "📦 Processing batch {current}/{total}",
+    "processing_url": "📄 Processing: {url}",
+    "updating_cache": "📝 Updating cache: {url} (status: {status})",
+    "using_cache": "📖 Using cache: {url} (status: {status})",
+    "url_current_status": "🔍 Current status for URL {url}: {status}",
+    "url_status_message": "{emoji} {status}: {url}",
+    "indexed": "✅ Already indexed: {url}",
+    "crawled_not_indexed": "👀 Crawled but not indexed: {url}",
+    "submitted_for_indexing": "🚀 Submitted indexing request: {url}",
+    "submission_failed": "❌ Failed to submit indexing request: {url} - {error}",
+    "unknown_to_google": "❓ Page unknown to Google: {url}",
+    "processing_failed": "❌ Processing failed: {url}",
+    "unknown_status": "❓ Unknown status: {status}",
+    "progress": "Progress: {progress}%",
+    "final_stats_header": "\n📈 All {total} pages processed, final statistics:",
+    "indexed_pages": "• ✅ Indexed pages: {count}",
+    "submitted_pages": "• 🚀 Submitted for indexing: {count}",
+    "crawled_pages": "• 👀 Crawled pages: {count}",
+    "unknown_pages": "• ❓ Unknown pages: {count}",
+    "failed_pages": "• ❌ Failed: {count}",
+    "all_completed": "✅ All URLs processed",
+    "process_error": "Error occurred during processing: {error}",
+    "reconnected": "🔄 Successfully reconnected, continuing...",
+    "tokenObtained": "Access token obtained",
+    "siteVerified": "Site access verified: {url}",
+    "fetchingSitemap": "🗺️ Fetching URLs from Sitemap...",
+    "noSitemap": "No Sitemap found, please add a Sitemap in Google Search Console first",
+    "noUrls": "No URLs found to process",
+    "retrying": "Will retry in {delay} seconds ({current}/{max})...",
+    "errors": {
+      "appNotFound": "App or required configuration not found",
+      "invalidCredentials": "Incomplete credentials",
+      "credentialsParseFailed": "Failed to parse credentials",
+      "tokenFailed": "Failed to obtain access token",
+      "unknown": "Unknown error",
+      "accessTokenRequired": "Access token is required",
+      "siteUrlRequired": "Site URL is required",
+      "inspectionUrlRequired": "Inspection URL is required",
+      "noSiteAccess": "Service account does not have access to this site",
+      "rateLimited": "Request rate limit exceeded",
+      "indexStatusFailed": "Failed to get index status",
+      "invalidResponseFormat": "Invalid response format",
+      "noSitesFound": "No sites found, please add a site in Google Search Console first",
+      "urlRequired": "URL is required",
+      "indexingRequestFailed": "Failed to submit indexing request",
+      "publishMetadataFailed": "Failed to get publish metadata",
+      "quotaExceeded": "Request quota exceeded\nQuota info: https://developers.google.com/search/apis/indexing-api/v3/quota-pricing\nUsage: https://console.cloud.google.com/apis/enabled",
+      "fetchSitemapUrlsFailed": "Failed to fetch URLs from sitemap",
+      "sitemapListParamsRequired": "Access token and site URL are required to get sitemap list",
+      "sitemapListFailed": "Failed to get list of sitemaps",
+      "noSitemapsFound": "No sitemaps found, add them to Google Search Console and try again",
+      "sitemapAccessDenied": "This service account doesn't have access to this site",
+      "responseStatus": "Response Status",
+      "responseContent": "Response Content",
+      "triedUrlFormats": "Tried URL Formats",
+      "getFailed": "Failed to retrieve logs",
+      "createFailed": "Failed to create log"
     }
   },
   "indexing": {
@@ -107,9 +172,6 @@
       "submitted": "Submitted",
       "crawled": "Crawled",
       "unknown": "Unknown"
-    },
-    "logs": {
-      "starting": "Starting process..."
     },
     "errors": {
       "selectApp": "Please select an app to index",
@@ -134,6 +196,37 @@
     "loading": "Loading...",
     "prevPage": "Previous",
     "nextPage": "Next",
-    "pageInfo": "Page {current} of {total}"
+    "pageInfo": "Page {current} of {total}",
+    "language": {
+      "en": "English",
+      "zh": "中文"
+    },
+    "errors": {
+      "unknown": "Unknown error",
+      "sseSendFailed": "Failed to send SSE message",
+      "sseCloseFailed": "Failed to close SSE connection",
+      "sseHandlerFailed": "SSE handler execution failed",
+      "sseConnectionLost": "Connection to server lost",
+      "missingParams": "Missing required parameters",
+      "missingAppId": "Missing required parameter: appId",
+      "missingRequestId": "Missing required parameter: requestId",
+      "unauthorized": "Unauthorized to access this app",
+      "indexingRequestFailed": "Failed to process indexing request",
+      "notFound": "not found"
+    }
+  },
+  "status": {
+    "submittedAndIndexed": "Successfully Indexed",
+    "duplicateContent": "Duplicate Content",
+    "crawledNotIndexed": "Crawled Not Indexed",
+    "discoveredNotIndexed": "Discovered Not Indexed",
+    "pageWithRedirect": "Page with Redirect",
+    "unknownPage": "Unknown Page",
+    "rateLimited": "Rate Limited",
+    "forbidden": "Access Forbidden",
+    "error": "Processing Error",
+    "unknown": "Unknown Status",
+    "failed": "Failed",
+    "pending": "Pending"
   }
 }

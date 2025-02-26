@@ -17,8 +17,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useTranslations, useFormatter } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useLocalePath } from "@/lib/utils/intl";
+import { DateTimeFormatter } from "@/lib/date";
 
 interface App {
   id: string;
@@ -40,7 +41,6 @@ export default function AppsClient({ apps: initialApps }: AppsClientProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const router = useRouter();
   const t = useTranslations();
-  const format = useFormatter();
   const getLocalePath = useLocalePath();
 
   const filteredApps = initialApps.filter(
@@ -186,15 +186,7 @@ export default function AppsClient({ apps: initialApps }: AppsClientProps) {
                   <td className="px-6 py-4 text-sm text-gray-900 whitespace-nowrap">{app.domain}</td>
                   <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{app.appEmail}</td>
                   <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
-                    {format.dateTime(new Date(app.createdAt), {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      second: "2-digit",
-                      hour12: false,
-                    })}
+                    {DateTimeFormatter.format(app.createdAt)}
                   </td>
                 </tr>
               ))

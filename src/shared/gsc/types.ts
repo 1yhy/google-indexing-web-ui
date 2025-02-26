@@ -39,4 +39,5 @@ export enum Status {
   Success = "SUCCESS",
   Failed = "FAILED",
   Pending = "PENDING",
+  Unknown = "UNKNOWN"
 }

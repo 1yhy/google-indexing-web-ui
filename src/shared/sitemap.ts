@@ -1,12 +1,10 @@
 import Sitemapper from "sitemapper";
 import { fetchRetry } from "./utils";
 import { webmasters_v3 } from "googleapis";
+import { t } from "@/i18n";
 
 /**
  * Retrieves a list of sitemaps associated with the specified site URL from the Google Webmasters API.
- * @param accessToken The access token for authentication.
- * @param siteUrl The URL of the site for which to retrieve the list of sitemaps.
- * @returns An array containing the paths of the sitemaps associated with the site URL.
  */
 async function getSitemapsList(accessToken: string, siteUrl: string) {
   const url = `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/sitemaps`;
@@ -19,21 +17,21 @@ async function getSitemapsList(accessToken: string, siteUrl: string) {
   });
 
   if (response.status === 403) {
-    console.error(`🔐 This service account doesn't have access to this site.`);
+    console.error(`🔐 ${t("logs.errors.sitemapAccessDenied")}`);
     return [];
   }
 
   if (response.status >= 300) {
-    console.error(`❌ Failed to get list of sitemaps.`);
-    console.error(`Response was: ${response.status}`);
-    console.error(await response.text());
+    console.error(`❌ ${t("logs.errors.sitemapListFailed")}`);
+    console.error(`📡 响应状态码: ${response.status}`);
+    console.error(`📡 响应内容: ${await response.text()}`);
     return [];
   }
 
   const body: webmasters_v3.Schema$SitemapsListResponse = await response.json();
 
   if (!body.sitemap) {
-    console.error("❌ No sitemaps found, add them to Google Search Console and try again.");
+    console.error(`❌ ${t("logs.errors.noSitemapsFound")}`);
     return [];
   }
 
@@ -41,7 +39,7 @@ async function getSitemapsList(accessToken: string, siteUrl: string) {
 }
 
 /**
- * 从单个 sitemap URL 获取所有页面 URLs
+ * Fetches all page URLs from a single sitemap URL.
  */
 async function fetchUrlsFromSitemap(sitemapUrl: string): Promise<string[]> {
   try {
@@ -52,7 +50,7 @@ async function fetchUrlsFromSitemap(sitemapUrl: string): Promise<string[]> {
     const { sites } = await Google.fetch();
     return sites;
   } catch (error) {
-    console.error(`❌ 从 sitemap 获取 URLs 失败: ${error instanceof Error ? error.message : "未知错误"}`);
+    console.error(`❌ ${t("logs.errors.fetchSitemapUrlsFailed")}: ${error instanceof Error ? error.message : t("logs.errors.unknown")}`);
     return [];
   }
 }
@@ -67,26 +65,30 @@ async function fetchUrlsFromSitemap(sitemapUrl: string): Promise<string[]> {
 export async function getSitemapPages(
   accessToken?: string,
   siteUrl?: string,
-  sitemapUrl?: string,
+  sitemapUrl?: string
 ): Promise<[string[], string[]]> {
-  // 如果提供了具体的 sitemap URL，直接获取其中的 URLs
+  // If a specific sitemap URL is provided, fetch URLs directly from it
   if (sitemapUrl) {
+    console.log(`🔍 正在从 Sitemap 获取 URLs: ${sitemapUrl}`);
     const urls = await fetchUrlsFromSitemap(sitemapUrl);
     return [[], [...new Set(urls)]];
   }
 
-  // 否则从 Google Search Console 获取所有 sitemaps
+  // Otherwise get all sitemaps from Google Search Console
   if (!accessToken || !siteUrl) {
-    throw new Error("获取 sitemap 列表需要提供 accessToken 和 siteUrl");
+    throw new Error(`❌ ${t("logs.errors.sitemapListParamsRequired")}`);
   }
 
+  console.log(`🔍 正在获取站点 Sitemap 列表: ${siteUrl}`);
   const sitemaps = await getSitemapsList(accessToken, siteUrl);
   let pages: string[] = [];
 
   for (const url of sitemaps) {
+    console.log(`📄 正在处理 Sitemap: ${url}`);
     const urls = await fetchUrlsFromSitemap(url);
     pages = [...pages, ...urls];
   }
 
+  console.log(`✅ 已获取所有 URLs，总计: ${pages.length}`);
   return [sitemaps, [...new Set(pages)]];
 }

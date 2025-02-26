@@ -9,6 +9,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useTranslations, useFormatter } from "next-intl";
 import { Link } from "@/i18n";
 import { useRouter } from "next/navigation";
+import { DateTimeFormatter } from "@/lib/date";
 
 interface LogEntry {
   type: string;
@@ -59,22 +60,13 @@ export default function LogsClient({ logBatches, currentPage, totalPages }: Logs
   const [selectedBatch, setSelectedBatch] = useState<LogBatch | null>(null);
   const router = useRouter();
   const t = useTranslations();
-  const format = useFormatter();
 
   const handlePageChange = (page: number) => {
     router.push(`/logs?page=${page}`);
   };
 
   const formatDate = (dateStr: string) => {
-    return format.dateTime(new Date(dateStr), {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    });
+    return DateTimeFormatter.format(dateStr);
   };
 
   return (

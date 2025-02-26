@@ -3,13 +3,14 @@ import { prisma } from "@/lib/prisma";
 import { getAccessToken } from "@/shared/auth";
 import { getSitemapPages } from "@/shared/sitemap";
 import { convertToSiteUrl } from "@/shared/gsc";
+import { t } from "@/i18n";
 
 export async function POST(request: Request) {
   try {
     const { appId } = await request.json();
 
     if (!appId) {
-      return NextResponse.json({ error: "缺少必要参数：appId" }, { status: 400 });
+      return NextResponse.json({ error: t("common.errors.missingAppId") }, { status: 400 });
     }
 
     // 获取应用信息
@@ -18,7 +19,7 @@ export async function POST(request: Request) {
     });
 
     if (!app || !app.jsonKey || !app.domain) {
-      return NextResponse.json({ error: "找不到应用或必要的配置信息" }, { status: 404 });
+      return NextResponse.json({ error: t("logs.errors.appNotFound") }, { status: 404 });
     }
 
     // 解析 JSON Key
@@ -26,11 +27,11 @@ export async function POST(request: Request) {
     try {
       credentials = JSON.parse(app.jsonKey);
       if (!credentials.client_email || !credentials.private_key) {
-        throw new Error("凭据信息不完整");
+        throw new Error(t("logs.errors.invalidCredentials"));
       }
     } catch (error) {
       return NextResponse.json(
-        { error: "解析凭据信息失败：" + (error instanceof Error ? error.message : "未知错误") },
+        { error: t("logs.errors.credentialsParseFailed") + ": " + (error instanceof Error ? error.message : t("logs.errors.unknown")) },
         { status: 400 },
       );
     }
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
     // 获取访问令牌
     const accessToken = await getAccessToken(credentials.client_email, credentials.private_key);
     if (!accessToken) {
-      return NextResponse.json({ error: "获取访问令牌失败" }, { status: 401 });
+      return NextResponse.json({ error: t("logs.errors.tokenFailed") }, { status: 401 });
     }
 
     // 获取 Sitemap URLs
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
 
     if (sitemaps.length === 0) {
       return NextResponse.json(
-        { error: "未找到任何 Sitemap，请先在 Google Search Console 中添加 Sitemap" },
+        { error: t("logs.noSitemap") },
         { status: 404 },
       );
     }
@@ -59,9 +60,9 @@ export async function POST(request: Request) {
       total: urls.length,
     });
   } catch (error) {
-    console.error("获取 Sitemap URLs 失败:", error);
+    console.error(t("logs.errors.fetchSitemapUrlsFailed"), error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "获取 Sitemap URLs 失败" },
+      { error: error instanceof Error ? error.message : t("logs.errors.fetchSitemapUrlsFailed") },
       { status: 500 },
     );
   }

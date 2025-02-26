@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n";
 
 interface Props {
@@ -40,6 +40,7 @@ interface Log {
 
 export function IndexingForm({ apps }: Props) {
   const t = useTranslations();
+  const locale = useLocale();
   const [selectedAppId, setSelectedAppId] = useState(apps[0]?.id || "");
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -59,7 +60,13 @@ export function IndexingForm({ apps }: Props) {
     e.preventDefault();
     try {
       if (!selectedAppId) {
+        toast.error(t("indexing.errors.selectApp"));
         throw new Error(t("indexing.errors.selectApp"));
+      }
+
+      // 防止重复提交
+      if (isLoading) {
+        return;
       }
 
       setIsLoading(true);
@@ -92,12 +99,17 @@ export function IndexingForm({ apps }: Props) {
         });
 
         if (invalidUrls.length > 0) {
-          throw new Error(t("indexing.errors.invalidUrls", { urls: invalidUrls.join("\n") }));
+          const errorMessage = t("indexing.errors.invalidUrls", { urls: invalidUrls.join("\n") });
+          toast.error(errorMessage);
+          throw new Error(errorMessage);
         }
 
         // 设置总数
         setStats((prev) => ({ ...prev, total: urlList.length }));
       }
+
+      // 生成唯一的请求 ID
+      const requestId = crypto.randomUUID();
 
       // 创建 EventSource 连接
       const eventSource = new EventSource(
@@ -105,11 +117,15 @@ export function IndexingForm({ apps }: Props) {
           appId: selectedAppId,
           urls: urlList.length > 0 ? JSON.stringify(urlList) : "",
           saveLog: saveLog.toString(),
+          requestId,
+          locale,
         })}`,
       );
 
       // 处理消息
       let isCompleted = false;
+      let reconnectCount = 0;
+      const MAX_RECONNECTS = 3;
 
       eventSource.onmessage = (event) => {
         try {
@@ -117,6 +133,7 @@ export function IndexingForm({ apps }: Props) {
 
           // 如果已经标记完成，不再处理新消息
           if (isCompleted) {
+            eventSource.close();
             return;
           }
 
@@ -132,11 +149,6 @@ export function IndexingForm({ apps }: Props) {
           if (data.data?.progress) {
             const currentProgress = Math.round(data.data.progress);
             setProgress(currentProgress);
-          }
-
-          // 显示错误消息
-          if (data.type === "error") {
-            toast.error(data.message);
           }
 
           // 更新统计信息
@@ -157,18 +169,32 @@ export function IndexingForm({ apps }: Props) {
         }
       };
 
-      // 处理错误
+      // 处理错误和重连
       eventSource.onerror = (error) => {
         // 如果已经完成，则是正常结束
         if (isCompleted) {
           return;
         }
 
-        // 检查连接是否仍然打开
+        // 检查连接状态
         if (eventSource.readyState === EventSource.CLOSED) {
-          console.error("SSE 连接错误:", error);
-          setIsLoading(false);
-          toast.error(t("indexing.errors.sseError"));
+          reconnectCount++;
+          console.log(`SSE 连接断开，重试次数: ${reconnectCount}/${MAX_RECONNECTS}`);
+
+          // 如果超过最大重试次数，则停止重试
+          if (reconnectCount >= MAX_RECONNECTS) {
+            console.error("SSE 连接失败，超过最大重试次数");
+            setIsLoading(false);
+            toast.error(t("indexing.errors.sseError"));
+            eventSource.close();
+          }
+        }
+      };
+
+      // 处理重连
+      eventSource.onopen = () => {
+        if (reconnectCount > 0) {
+          console.log("SSE 连接已重新建立");
         }
       };
 
@@ -180,8 +206,7 @@ export function IndexingForm({ apps }: Props) {
         setIsLoading(false);
       };
     } catch (error) {
-      console.error("提交表单时发生错误:", error);
-      toast.error(error instanceof Error ? error.message : t("indexing.errors.submitFailed"));
+      setIsLoading(false);
       setLogs((prev) => [
         ...prev,
         {
@@ -190,7 +215,6 @@ export function IndexingForm({ apps }: Props) {
           timestamp: new Date().toISOString(),
         },
       ]);
-      setIsLoading(false);
     }
   }
 

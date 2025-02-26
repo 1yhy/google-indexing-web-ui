@@ -1,25 +1,14 @@
 import { createSharedPathnamesNavigation } from "next-intl/navigation";
-
-// 支持的语言列表
-export const locales = ["en", "zh"] as const;
-export type Locale = (typeof locales)[number];
-export const defaultLocale = "en";
+import { locales } from "./config";
 
 // 用于客户端导航
 export const { Link, usePathname, useRouter } = createSharedPathnamesNavigation({ locales });
 
-// 全局配置
-export const timeZone = "Asia/Shanghai";
+// 导出所有配置和工具
+export * from "./config";
+export * from "./server";
+export * from "./client";
 
-// 日期时间格式配置
-export const dateTimeFormats = {
-  full: {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  },
-} as const;
+// 重新导出类型
+export type { MessageKeys } from "./server/translator";
+export type { Translator, TranslatorOptions } from "./server/types";

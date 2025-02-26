@@ -4,6 +4,7 @@ import { getFromCache, updateCache } from "@/lib/url";
 import { getStatusEmoji, getStatusDescription } from "@/lib/status";
 import { Status, IndexResult } from "./types";
 import { getPageIndexingStatus, requestIndexing } from "./api";
+import { t } from "@/i18n";
 
 type LogCallback = (type: LogType, message: string, url?: string, status?: string, data?: any) => Promise<void>;
 
@@ -17,28 +18,29 @@ export async function indexUrls(
   urls: string[],
   sse: SSEHandler,
   appId: string,
-  logCallback?: LogCallback,
+  logCallback?: LogCallback
 ) {
   const CACHE_TIMEOUT = 1000 * 60 * 60 * 24 * 14; // 14 天缓存
   const results: IndexResult[] = [];
   const urlStatuses = new Map<string, Status>();
-  const urlMessages = new Map<string, string>();
 
   const log = async (
     type: "info" | "error" | "success" | "progress",
-    message: string,
+    messageKey: string,
     url?: string,
     status?: string,
     data?: any,
+    params?: Record<string, any>
   ) => {
     if (logCallback) {
+      const message = t(`logs.${messageKey}`, params || {});
       await logCallback(type, message, url, status, data);
     }
   };
 
   try {
-    await log("info", `🔎 处理站点: ${siteUrl}`);
-    await log("info", `👉 找到 ${urls.length} 个待处理的 URL`);
+    await log("info", "site_processing", undefined, undefined, undefined, { siteUrl });
+    await log("info", "urls_found", undefined, undefined, undefined, { count: urls.length });
 
     // 获取访问令牌
     const accessToken = await getAccessToken(clientEmail, privateKey);
@@ -75,93 +77,68 @@ export async function indexUrls(
       const batchNumber = Math.floor(i / batchSize) + 1;
       const batchResults: IndexResult[] = [];
 
-      await log("info", `📦 开始处理第 ${batchNumber}/${batches} 批 URLs`);
+      await log("info", "batch_processing", undefined, undefined, undefined, { current: batchNumber, total: batches });
 
       // 并行处理当前批次的 URLs
       await Promise.all(
         batchUrls.map(async (url) => {
           try {
-            await log("info", `📄 正在处理: ${url}`, url);
+            await log("info", "processing_url", url, undefined, undefined, { url });
 
             // 检查缓存
             const needsRecheck = await shouldRecheck(url);
             let status: Status;
 
-            if (needsRecheck) {
-              status = await getPageIndexingStatus(accessToken, siteUrl, url);
-              // 更新缓存
-              await updateCache(appId, url, status);
-              await log("info", `📝 更新缓存: ${url} (状态: ${status})`, url, status);
-            } else {
-              const cache = await getFromCache(appId, url);
-              console.log(`📦 缓存数据:`, cache);
-
-              // 检查缓存状态是否需要更新
-              const shouldUpdate =
-                !cache?.status ||
-                cache.status === Status.URLIsUnknownToGoogle ||
-                cache.status === Status.CrawledCurrentlyNotIndexed ||
-                cache.status === Status.DiscoveredCurrentlyNotIndexed;
-
-              if (shouldUpdate) {
+            try {
+              if (needsRecheck) {
                 status = await getPageIndexingStatus(accessToken, siteUrl, url);
+                // 更新缓存
                 await updateCache(appId, url, status);
-                await log("info", `📝 更新缓存: ${url} (状态: ${status})`, url, status);
+                await log("info", "updating_cache", url, status, undefined, { url, status });
               } else {
-                status = cache.status as Status;
-                await log("info", `📖 使用缓存: ${url} (状态: ${status})`, url, status);
+                const cache = await getFromCache(appId, url);
+                if (!cache?.status) {
+                  status = await getPageIndexingStatus(accessToken, siteUrl, url);
+                  await updateCache(appId, url, status);
+                  await log("info", "updating_cache", url, status, undefined, { url, status });
+                } else {
+                  status = cache.status as Status;
+                  await log("info", "using_cache", url, status, undefined, { url, status });
+                }
               }
+            } catch (error) {
+              // 如果获取状态失败，将状态设置为 Failed
+              status = Status.Failed;
+              await log("error", "processing_failed", url, status, undefined, { url });
+              urlStatuses.set(url, status);
+              throw error; // 重新抛出错误以触发外层错误处理
             }
-
-            console.log(`🔍 URL ${url} 的当前状态: ${status}`);
 
             // 更新统计
             switch (status) {
               case Status.SubmittedAndIndexed:
                 urlStatuses.set(url, status);
-                urlMessages.set(url, `✅ 已被索引: ${url}`);
-                await log("success", `✅ 已被索引: ${url}`, url, status);
+                await log("success", "indexed", url, status, undefined, { url });
                 break;
               case Status.CrawledCurrentlyNotIndexed:
-                urlStatuses.set(url, status);
-                urlMessages.set(url, `👀 已爬取但未索引: ${url}`);
-                await log("info", `👀 已爬取但未索引: ${url}`, url, status);
-                // 已爬取但未索引的页面需要提交索引请求
-                try {
-                  await requestIndexing(accessToken, url);
-                  urlStatuses.set(url, Status.Pending);
-                  urlMessages.set(url, `🚀 已提交索引请求: ${url}`);
-                  await log("success", `🚀 已提交索引请求: ${url}`, url, Status.Pending);
-                } catch (error) {
-                  urlStatuses.set(url, Status.Failed);
-                  urlMessages.set(url, `❌ 提交索引请求失败: ${error instanceof Error ? error.message : "未知错误"}`);
-                  await log(
-                    "error",
-                    `❌ 提交索引请求失败: ${url} - ${error instanceof Error ? error.message : "未知错误"}`,
-                    url,
-                    Status.Failed,
-                  );
-                }
-                break;
               case Status.URLIsUnknownToGoogle:
               case Status.DiscoveredCurrentlyNotIndexed:
                 urlStatuses.set(url, status);
-                urlMessages.set(url, `❓ Google 未知页面: ${url}`);
-                await log("info", `❓ Google 未知页面: ${url}`, url, status);
-                // 未知页面需要提交索引请求
+                await log("info", status === Status.CrawledCurrentlyNotIndexed ? "crawled_not_indexed" : "unknown_to_google", url, status, undefined, { url });
                 try {
                   await requestIndexing(accessToken, url);
                   urlStatuses.set(url, Status.Pending);
-                  urlMessages.set(url, `🚀 已提交索引请求: ${url}`);
-                  await log("success", `🚀 已提交索引请求: ${url}`, url, Status.Pending);
+                  await log("success", "submitted_for_indexing", url, Status.Pending, undefined, { url });
                 } catch (error) {
-                  urlStatuses.set(url, Status.Failed);
-                  urlMessages.set(url, `❌ 提交索引请求失败: ${error instanceof Error ? error.message : "未知错误"}`);
+                  status = Status.Failed;
+                  urlStatuses.set(url, status);
                   await log(
                     "error",
-                    `❌ 提交索引请求失败: ${url} - ${error instanceof Error ? error.message : "未知错误"}`,
+                    "submission_failed",
                     url,
-                    Status.Failed,
+                    status,
+                    undefined,
+                    { url, error: error instanceof Error ? error.message : "未知错误" }
                   );
                 }
                 break;
@@ -169,13 +146,11 @@ export async function indexUrls(
               case Status.Forbidden:
               case Status.RateLimited:
                 urlStatuses.set(url, status);
-                urlMessages.set(url, `❌ 处理失败: ${url}`);
-                await log("error", `❌ 处理失败: ${url}`, url, status);
+                await log("error", "processing_failed", url, status, undefined, { url });
                 break;
               default:
                 urlStatuses.set(url, status);
-                urlMessages.set(url, `❓ 未知状态: ${status}`);
-                await log("info", `❓ 未知状态: ${status}`, url, status);
+                await log("info", "unknown_status", url, status, undefined, { status });
                 break;
             }
 
@@ -187,21 +162,32 @@ export async function indexUrls(
             batchResults.push(result);
             results.push(result);
 
-            // 只发送一次状态描述，不重复记录
-            await log("info", `${getStatusEmoji(status)} ${getStatusDescription(status)}: ${url}`, url, status);
+            // 使用翻译后的状态消息
+            const statusMessage = getStatusDescription(status);
+            await log("info", "url_status_message", url, status, undefined, {
+              url,
+              emoji: getStatusEmoji(status),
+              status: statusMessage
+            });
           } catch (error) {
-            urlStatuses.set(url, Status.Failed);
-            urlMessages.set(url, `❌ 处理失败: ${error instanceof Error ? error.message : "未知错误"}`);
+            // 确保错误状态被正确设置和保持
+            const errorStatus = Status.Failed;
+            if (!urlStatuses.has(url)) {
+              urlStatuses.set(url, errorStatus);
+            }
+
             await log(
               "error",
-              `❌ 处理失败: ${url} - ${error instanceof Error ? error.message : "未知错误"}`,
+              "processing_failed",
               url,
-              Status.Failed,
+              errorStatus,
+              undefined,
+              { url }
             );
 
             const result = {
               url,
-              status: Status.Failed,
+              status: errorStatus,
               message: error instanceof Error ? error.message : "未知错误",
               timestamp: new Date(),
             };
@@ -213,9 +199,8 @@ export async function indexUrls(
 
       // 发送进度信息
       const progress = (batchNumber / batches) * 100;
-      // 只有在不是最后一批时才发送进度
       if (batchNumber < batches) {
-        await log("progress", `进度：${progress.toFixed(1)}%`, undefined, undefined, {
+        await log("progress", "progress", undefined, undefined, {
           progress,
           stats: {
             total: urls.length,
@@ -229,7 +214,7 @@ export async function indexUrls(
               [Status.URLIsUnknownToGoogle, Status.DiscoveredCurrentlyNotIndexed].includes(s),
             ).length,
           },
-        });
+        }, { progress: progress.toFixed(1) });
       }
     }
 
@@ -248,15 +233,15 @@ export async function indexUrls(
     };
 
     // 发送详细统计信息
-    await log("info", `\n📈 所有 ${urls.length} 个页面处理完成，最终统计：`);
-    if (finalStats.indexed > 0) await log("info", `• ✅ 已索引页面：${finalStats.indexed} 个`);
-    if (finalStats.submitted > 0) await log("info", `• 🚀 已提交索引请求：${finalStats.submitted} 个`);
-    if (finalStats.crawled > 0) await log("info", `• 👀 已爬取页面：${finalStats.crawled} 个`);
-    if (finalStats.unknown > 0) await log("info", `• ❓ 未知页面：${finalStats.unknown} 个`);
-    if (finalStats.error > 0) await log("info", `• ❌ 处理失败：${finalStats.error} 个`);
+    await log("info", "final_stats_header", undefined, undefined, undefined, { total: urls.length });
+    if (finalStats.indexed > 0) await log("info", "indexed_pages", undefined, undefined, undefined, { count: finalStats.indexed });
+    if (finalStats.submitted > 0) await log("info", "submitted_pages", undefined, undefined, undefined, { count: finalStats.submitted });
+    if (finalStats.crawled > 0) await log("info", "crawled_pages", undefined, undefined, undefined, { count: finalStats.crawled });
+    if (finalStats.unknown > 0) await log("info", "unknown_pages", undefined, undefined, undefined, { count: finalStats.unknown });
+    if (finalStats.error > 0) await log("info", "failed_pages", undefined, undefined, undefined, { count: finalStats.error });
 
     // 发送最终统计信息和完成标记
-    await log("success", "✅ 所有 URL 处理完成", undefined, undefined, {
+    await log("success", "all_completed", undefined, undefined, {
       progress: 100,
       stats: finalStats,
       isCompleted: true,
@@ -268,7 +253,7 @@ export async function indexUrls(
     return results;
   } catch (error) {
     console.error("处理 URLs 时发生错误:", error);
-    await log("error", `处理过程中发生错误: ${error instanceof Error ? error.message : "未知错误"}`);
+    await log("error", "process_error", undefined, undefined, undefined, { error: error instanceof Error ? error.message : "未知错误" });
 
     // 发生错误时也关闭连接
     sse.close();

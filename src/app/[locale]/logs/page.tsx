@@ -62,163 +62,112 @@ export default async function LogsPage({ params: { locale }, searchParams }: Log
     return <LogsClient logBatches={[]} currentPage={1} totalPages={0} />;
   }
 
-  // 先获取所有不同的 batchId
-  const batchIds = await prisma.indexLog
-    .groupBy({
-      by: ["batchId"],
-      where: {
-        app: {
-          userId: session.user.id,
-        },
-      },
-      orderBy: {
-        _max: {
-          timestamp: "desc",
-        },
-      },
-      take: PAGE_SIZE,
-      skip: (currentPage - 1) * PAGE_SIZE,
-    })
-    .then((groups) => groups.map((g) => g.batchId).filter((id): id is string => id !== null));
-
-  // 获取总批次数
-  const totalBatches = await prisma.indexLog
-    .groupBy({
-      by: ["batchId"],
-      where: {
-        app: {
-          userId: session.user.id,
-        },
-      },
-    })
-    .then((groups) => groups.length);
-
-  const totalPages = Math.ceil(totalBatches / PAGE_SIZE);
-
-  // 获取这些批次的所有日志
-  const batchLogs = (await prisma.indexLog.findMany({
+  // 获取批次列表（按时间倒序）
+  const batches = await prisma.indexLog.groupBy({
+    by: ["batchId"],
     where: {
-      batchId: {
-        in: batchIds,
+      appId: {
+        in: (await prisma.app.findMany({
+          where: { userId: session.user.id },
+          select: { id: true },
+        })).map(app => app.id),
       },
+      url: { not: "" },
     },
-    include: {
-      app: true,
+    _count: {
+      url: true,
     },
     orderBy: {
-      timestamp: "desc",
+      _max: {
+        timestamp: "desc",
+      },
     },
-  })) as LogWithApp[];
+    take: PAGE_SIZE,
+    skip: (currentPage - 1) * PAGE_SIZE,
+  });
 
-  // 按批次 ID 分组
-  const batchGroups = batchLogs.reduce(
-    (acc, log) => {
-      const batchId = log.batchId || "default";
-      if (!acc[batchId]) {
-        acc[batchId] = {
-          batchId,
-          appId: log.appId,
-          appName: log.app.name,
-          domain: log.app.domain,
-          timestamp: log.timestamp,
-          logs: [],
-          stats: {
-            total: 0,
-            indexed: 0,
-            submitted: 0,
-            crawled: 0,
-            error: 0,
-            unknown: 0,
+  // 获取每个批次的详细信息
+  const batchesWithDetails = await Promise.all(
+    batches.map(async (batch) => {
+      // 获取批次的统计数据
+      const stats = batch.batchId ? await prisma.batchStats.findUnique({
+        where: { batchId: batch.batchId },
+      }) : null;
+
+      // 获取批次的第一条日志（用于时间戳和应用信息）
+      const firstLog = await prisma.indexLog.findFirst({
+        where: {
+          batchId: batch.batchId,
+          url: { not: "" },
+        },
+        orderBy: { timestamp: "asc" },
+        include: {
+          app: {
+            select: {
+              domain: true,
+              name: true
+            },
           },
-        };
-      }
-
-      // 添加日志
-      acc[batchId].logs.push({
-        id: log.id,
-        url: log.url,
-        status: log.status as Status,
-        message: log.message || "",
-        type: log.type || "info",
-        timestamp: log.timestamp,
+        },
       });
 
-      return acc;
-    },
-    {} as Record<string, LogBatch>,
+      // 获取批次的所有日志
+      const logs = await prisma.indexLog.findMany({
+        where: {
+          batchId: batch.batchId,
+        },
+        orderBy: { timestamp: "asc" },
+      });
+
+      return {
+        batchId: batch.batchId || "",
+        appId: firstLog?.appId || "",
+        appName: firstLog?.app?.name || "",
+        domain: firstLog?.app?.domain || "",
+        timestamp: firstLog?.timestamp.toISOString() || new Date().toISOString(),
+        stats: stats ? {
+          total: stats.total,
+          indexed: stats.indexed,
+          submitted: stats.submitted,
+          crawled: stats.crawled,
+          error: stats.error,
+          unknown: stats.unknown,
+        } : {
+          total: 0,
+          indexed: 0,
+          submitted: 0,
+          crawled: 0,
+          error: 0,
+          unknown: 0,
+        },
+        logs: logs.map(log => ({
+          id: log.id,
+          url: log.url || "",
+          status: log.status as Status,
+          type: log.type,
+          message: log.message || "",
+          timestamp: log.timestamp.toISOString(),
+        })),
+      };
+    }),
   );
 
-  // 对每个批次进行状态统计
-  Object.values(batchGroups).forEach((batch) => {
-    // 按 URL 分组，只取每个 URL 的最新状态
-    const urlLatestStatus = new Map<string, { status: Status; timestamp: Date }>();
-    batch.logs
-      .filter((log) => log.url) // 只统计有 URL 的日志
-      .forEach((log) => {
-        const existing = urlLatestStatus.get(log.url);
-        if (!existing || log.timestamp > existing.timestamp) {
-          urlLatestStatus.set(log.url, {
-            status: log.status as Status,
-            timestamp: log.timestamp,
-          });
-        }
-      });
+  // 获取总批次数
+  const total = await prisma.indexLog.groupBy({
+    by: ["batchId"],
+    where: {
+      appId: {
+        in: (await prisma.app.findMany({
+          where: { userId: session.user.id },
+          select: { id: true },
+        })).map(app => app.id),
+      },
+      url: { not: "" },
+    },
+    _count: true,
+  }).then(result => result.length);
 
-    // 重置统计
-    batch.stats = {
-      total: 0,
-      indexed: 0,
-      submitted: 0,
-      crawled: 0,
-      error: 0,
-      unknown: 0,
-    };
+  const totalPages = Math.ceil(total / PAGE_SIZE);
 
-    // 统计每个 URL 的最终状态
-    urlLatestStatus.forEach((data) => {
-      batch.stats.total++;
-
-      switch (data.status) {
-        case "URL_IS_ON_GOOGLE":
-          batch.stats.indexed++;
-          break;
-        case "PENDING":
-          batch.stats.submitted++;
-          break;
-        case "CRAWLED_CURRENTLY_NOT_INDEXED":
-          batch.stats.crawled++;
-          break;
-        case "ERROR":
-        case "FORBIDDEN":
-        case "RATE_LIMITED":
-        case "FAILED":
-          batch.stats.error++;
-          break;
-        case "URL_IS_UNKNOWN_TO_GOOGLE":
-        case "DISCOVERED_CURRENTLY_NOT_INDEXED":
-        default:
-          batch.stats.unknown++;
-          break;
-      }
-    });
-  });
-
-  // 对每个批次内的日志按时间升序排序
-  Object.values(batchGroups).forEach((group: LogBatch) => {
-    group.logs.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-  });
-
-  // 按时间戳降序排序批次
-  const sortedBatches = Object.values(batchGroups)
-    .map((batch) => ({
-      ...batch,
-      timestamp: batch.timestamp.toISOString(),
-      logs: batch.logs.map((log) => ({
-        ...log,
-        timestamp: log.timestamp.toISOString(),
-      })),
-    }))
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-  return <LogsClient logBatches={sortedBatches} currentPage={currentPage} totalPages={totalPages} />;
+  return <LogsClient logBatches={batchesWithDetails} currentPage={currentPage} totalPages={totalPages} />;
 }

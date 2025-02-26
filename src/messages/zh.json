@@ -62,7 +62,11 @@
       "nameRequired": "请输入应用名称",
       "domainRequired": "请输入域名",
       "invalidEmail": "请输入有效的邮箱地址",
-      "jsonKeyRequired": "请输入服务账号凭据"
+      "jsonKeyRequired": "请输入服务账号密钥",
+      "getFailed": "获取应用列表失败",
+      "missingFields": "请填写所有必填字段",
+      "invalidCredentials": "服务账号凭据无效",
+      "invalidJsonFormat": "服务账号凭据 JSON 格式无效"
     }
   },
   "logs": {
@@ -88,6 +92,67 @@
       "info": "信息",
       "error": "错误",
       "warning": "警告"
+    },
+    "starting": "开始处理...",
+    "site_processing": "🔎 处理站点: {siteUrl}",
+    "urls_found": "👉 找到 {count} 个待处理的 URL",
+    "batch_processing": "📦 开始处理第 {current}/{total} 批 URLs",
+    "processing_url": "📄 正在处理: {url}",
+    "updating_cache": "📝 更新缓存: {url} (状态: {status})",
+    "using_cache": "📖 使用缓存: {url} (状态: {status})",
+    "url_current_status": "🔍 URL {url} 的当前状态: {status}",
+    "url_status_message": "{emoji} {status}: {url}",
+    "indexed": "✅ 已被索引: {url}",
+    "crawled_not_indexed": "👀 已爬取但未索引: {url}",
+    "submitted_for_indexing": "🚀 已提交索引请求: {url}",
+    "submission_failed": "❌ 提交索引请求失败: {url} - {error}",
+    "unknown_to_google": "❓ Google 未知页面: {url}",
+    "processing_failed": "❌ 处理失败: {url}",
+    "unknown_status": "❓ 未知状态: {status}",
+    "progress": "进度：{progress}%",
+    "final_stats_header": "\n📈 所有 {total} 个页面处理完成，最终统计：",
+    "indexed_pages": "• ✅ 已索引页面：{count} 个",
+    "submitted_pages": "• 🚀 已提交索引请求：{count} 个",
+    "crawled_pages": "• 👀 已爬取页面：{count} 个",
+    "unknown_pages": "• ❓ 未知页面：{count} 个",
+    "failed_pages": "• ❌ 处理失败：{count} 个",
+    "all_completed": "✅ 所有 URL 处理完成",
+    "process_error": "处理过程中发生错误: {error}",
+    "reconnected": "🔄 重新连接成功，继续处理...",
+    "tokenObtained": "已获取访问令牌",
+    "siteVerified": "已验证站点访问权限: {url}",
+    "fetchingSitemap": "🗺️ 正在从 Sitemap 获取 URLs...",
+    "noSitemap": "未找到任何 Sitemap，请先在 Google Search Console 中添加 Sitemap",
+    "noUrls": "没有找到任何需要处理的 URLs",
+    "retrying": "将在 {delay} 秒后重试 ({current}/{max})...",
+    "errors": {
+      "appNotFound": "找不到应用或必要的配置信息",
+      "invalidCredentials": "凭据信息不完整",
+      "credentialsParseFailed": "凭据解析失败",
+      "tokenFailed": "获取访问令牌失败",
+      "unknown": "未知错误",
+      "accessTokenRequired": "访问令牌不能为空",
+      "siteUrlRequired": "站点 URL 不能为空",
+      "inspectionUrlRequired": "检查 URL 不能为空",
+      "noSiteAccess": "服务账号没有访问此站点的权限",
+      "rateLimited": "请求频率超限",
+      "indexStatusFailed": "获取索引状态失败",
+      "invalidResponseFormat": "响应格式无效",
+      "noSitesFound": "未找到站点，请先在 Google Search Console 中添加站点",
+      "urlRequired": "URL 不能为空",
+      "indexingRequestFailed": "提交索引请求失败",
+      "publishMetadataFailed": "获取发布元数据失败",
+      "quotaExceeded": "请求配额超限\n配额信息：https://developers.google.com/search/apis/indexing-api/v3/quota-pricing\n使用情况：https://console.cloud.google.com/apis/enabled",
+      "fetchSitemapUrlsFailed": "获取站点地图 URL 失败",
+      "sitemapListParamsRequired": "获取站点地图列表需要访问令牌和站点 URL",
+      "sitemapListFailed": "获取站点地图列表失败",
+      "noSitemapsFound": "未找到站点地图，请在 Google Search Console 中添加后重试",
+      "sitemapAccessDenied": "此服务账号没有访问此站点的权限",
+      "responseStatus": "响应状态",
+      "responseContent": "响应内容",
+      "triedUrlFormats": "尝试的 URL 格式",
+      "getFailed": "获取日志记录失败",
+      "createFailed": "创建日志失败"
     }
   },
   "indexing": {
@@ -107,9 +172,6 @@
       "submitted": "已提交",
       "crawled": "已爬取",
       "unknown": "未知"
-    },
-    "logs": {
-      "starting": "开始处理..."
     },
     "errors": {
       "selectApp": "请选择要索引的应用",
@@ -134,6 +196,37 @@
     "loading": "加载中...",
     "prevPage": "上一页",
     "nextPage": "下一页",
-    "pageInfo": "第 {current} 页 / 共 {total} 页"
+    "pageInfo": "第 {current} 页 / 共 {total} 页",
+    "language": {
+      "en": "English",
+      "zh": "中文"
+    },
+    "errors": {
+      "unknown": "未知错误",
+      "sseSendFailed": "发送 SSE 消息失败",
+      "sseCloseFailed": "关闭 SSE 连接失败",
+      "sseHandlerFailed": "SSE 处理器执行失败",
+      "sseConnectionLost": "与服务器的连接已断开",
+      "missingParams": "缺少必要参数",
+      "missingAppId": "缺少必要参数：appId",
+      "missingRequestId": "缺少必要参数：requestId",
+      "unauthorized": "无权访问此应用",
+      "indexingRequestFailed": "处理索引请求时发生错误",
+      "notFound": "找不到"
+    }
+  },
+  "status": {
+    "submittedAndIndexed": "已成功索引",
+    "duplicateContent": "重复内容",
+    "crawledNotIndexed": "已爬取未索引",
+    "discoveredNotIndexed": "已发现未索引",
+    "pageWithRedirect": "页面重定向",
+    "unknownPage": "未知页面",
+    "rateLimited": "请求频率限制",
+    "forbidden": "访问被拒绝",
+    "error": "处理错误",
+    "unknown": "未知状态",
+    "failed": "失败",
+    "pending": "待处理"
   }
 }

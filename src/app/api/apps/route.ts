@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { validateServiceAccount } from "@/lib/google";
 import { auth } from "@/auth";
+import { t } from "@/i18n";
 
 export async function POST(request: Request) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "未登录" }, { status: 401 });
+      return NextResponse.json({ error: t("common.errors.unauthorized") }, { status: 401 });
     }
 
     const body = await request.json();
@@ -15,7 +16,7 @@ export async function POST(request: Request) {
 
     // 验证必填字段
     if (!domain || !appEmail || !credentials) {
-      return NextResponse.json({ error: "缺少必填字段" }, { status: 400 });
+      return NextResponse.json({ error: t("apps.errors.missingFields") }, { status: 400 });
     }
 
     // 解析服务账号凭据
@@ -23,14 +24,14 @@ export async function POST(request: Request) {
     try {
       parsedCredentials = JSON.parse(credentials);
     } catch (error) {
-      return NextResponse.json({ error: "无效的服务账号凭据格式" }, { status: 400 });
+      return NextResponse.json({ error: t("apps.errors.invalidJsonFormat") }, { status: 400 });
     }
 
     // 验证服务账号凭据
     const isValid = await validateServiceAccount(parsedCredentials.client_email, parsedCredentials.private_key, domain);
 
     if (!isValid) {
-      return NextResponse.json({ error: "无效的服务账号凭据或域名" }, { status: 400 });
+      return NextResponse.json({ error: t("apps.errors.invalidCredentials") }, { status: 400 });
     }
 
     // 创建应用并关联用户
@@ -46,8 +47,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json(app);
   } catch (error) {
-    console.error("创建应用失败:", error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : "创建应用失败" }, { status: 500 });
+    console.error(t("apps.addFailed"), error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : t("apps.addFailed") }, { status: 500 });
   }
 }
 
@@ -55,7 +56,7 @@ export async function GET() {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "未登录" }, { status: 401 });
+      return NextResponse.json({ error: t("common.errors.unauthorized") }, { status: 401 });
     }
 
     // 只获取当前用户的应用
@@ -67,8 +68,8 @@ export async function GET() {
     });
     return NextResponse.json(apps);
   } catch (error) {
-    console.error("获取应用列表失败:", error);
-    return NextResponse.json({ error: "获取应用列表失败" }, { status: 500 });
+    console.error(t("apps.loadError"), error);
+    return NextResponse.json({ error: t("apps.loadError") }, { status: 500 });
   }
 }
 
@@ -78,7 +79,7 @@ export async function DELETE(request: Request) {
     const ids = searchParams.get("ids")?.split(",");
 
     if (!ids || ids.length === 0) {
-      return NextResponse.json({ error: "请选择要删除的应用" }, { status: 400 });
+      return NextResponse.json({ error: t("apps.selectToDelete") }, { status: 400 });
     }
 
     // 使用事务确保数据一致性
@@ -120,13 +121,13 @@ export async function DELETE(request: Request) {
       });
     });
 
-    return NextResponse.json({ message: "删除成功" });
+    return NextResponse.json({ message: t("apps.deleteSuccess") });
   } catch (error) {
-    console.error("删除应用失败:", error);
+    console.error(t("apps.deleteFailed"), error);
     return NextResponse.json(
       {
-        error: "删除应用失败，请确保没有正在进行的索引任务",
-        details: error instanceof Error ? error.message : "未知错误",
+        error: t("apps.deleteFailed"),
+        details: error instanceof Error ? error.message : t("common.errors.unknown"),
       },
       { status: 500 },
     );

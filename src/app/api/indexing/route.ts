@@ -8,17 +8,70 @@ import crypto from "crypto";
 import { Status } from "@/shared/gsc/types";
 import { createLog } from "../logs/service";
 import { auth } from "@/auth";
+import { locales, defaultLocale } from "@/i18n";
+import { t } from "@/i18n";
+import { I18nService } from "@/i18n";
 
-async function handleIndexing(appId: string, rawUrls: string[] = [], saveLog: boolean = true) {
-  // 生成唯一的批次 ID
-  const batchId = crypto.randomUUID();
+// 使用 Map 来存储正在处理的请求和其状态
+interface RequestState {
+  batchId: string;
+  processedUrls: Set<string>;
+  urlStatuses: Map<string, Status>;
+  isProcessing: boolean;
+  lastProgress: number;
+  startTime: number;
+  retryCount: number;
+}
+
+const activeRequests = new Map<string, RequestState>();
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 5000; // 5秒
+
+// 重试函数
+async function retryWithDelay<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = MAX_RETRIES,
+  delayMs: number = RETRY_DELAY
+): Promise<T> {
+  let lastError: any;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (i < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, delayMs * (i + 1)));
+      }
+    }
+  }
+  throw lastError;
+}
+
+async function handleIndexing(appId: string, rawUrls: string[] = [], saveLog: boolean = true, requestId: string) {
+  // 检查是否存在进行中的请求
+  let requestState = activeRequests.get(requestId);
+  const isReconnection = !!requestState;
+
+  if (!requestState) {
+    // 新请求：初始化状态
+    requestState = {
+      batchId: crypto.randomUUID(),
+      processedUrls: new Set<string>(),
+      urlStatuses: new Map<string, Status>(),
+      isProcessing: true,
+      lastProgress: 0,
+      startTime: Date.now(),
+      retryCount: 0
+    };
+    activeRequests.set(requestId, requestState);
+  }
 
   return createSSEResponse(async (sse) => {
     // 创建日志函数
     const log = async (type: LogType, message: string, url?: string, status?: string, data?: any) => {
       if (saveLog) {
         await createLog({
-          batchId,
+          batchId: requestState!.batchId,
           appId,
           type,
           message,
@@ -31,95 +84,265 @@ async function handleIndexing(appId: string, rawUrls: string[] = [], saveLog: bo
     };
 
     try {
-      // 获取应用信息
-      const app = await prisma.app.findUnique({
-        where: { id: appId },
-      });
-
-      if (!app || !app.jsonKey || !app.domain) {
-        throw new Error("找不到应用或必要的配置信息");
+      // 如果是重连，发送恢复消息和当前进度
+      if (isReconnection) {
+        await log("info", t("logs.reconnected"));
+        await log("progress", t("logs.progress", { progress: requestState.lastProgress }), undefined, undefined, {
+          progress: requestState.lastProgress,
+          stats: getStats(requestState.urlStatuses),
+        });
       }
 
-      await log("info", "开始处理...");
+      // 获取应用信息
+      const app = await retryWithDelay(async () => {
+        const result = await prisma.app.findUnique({
+          where: { id: appId },
+        });
+        if (!result || !result.jsonKey || !result.domain) {
+          throw new Error(t("logs.errors.appNotFound"));
+        }
+        return result;
+      });
+
+      if (!isReconnection) {
+        await log("info", t("logs.starting"));
+      }
 
       // 解析 JSON Key
       let credentials;
       try {
         credentials = JSON.parse(app.jsonKey);
         if (!credentials.client_email || !credentials.private_key) {
-          throw new Error("凭据信息不完整");
+          throw new Error(t("logs.errors.invalidCredentials"));
         }
       } catch (error) {
-        const message = "解析凭据信息失败：" + (error instanceof Error ? error.message : "未知错误");
+        const message = t("logs.errors.credentialsParseFailed") + ": " + (error instanceof Error ? error.message : t("logs.errors.unknown"));
         await log("error", message);
         throw new Error(message);
       }
 
       // 获取访问令牌
-      const accessToken = await getAccessToken(credentials.client_email, credentials.private_key);
-      if (!accessToken) {
-        const message = "获取访问令牌失败";
-        await log("error", message);
-        throw new Error(message);
+      const accessToken = await retryWithDelay(async () => {
+        const token = await getAccessToken(credentials.client_email, credentials.private_key);
+        if (!token) {
+          throw new Error(t("logs.errors.tokenFailed"));
+        }
+        return token;
+      });
+
+      if (!isReconnection) {
+        await log("info", t("logs.tokenObtained"));
       }
-      await log("info", "已获取访问令牌");
 
       // 验证站点访问权限
       const domain = app.domain.trim();
-      const validSiteUrl = await checkSiteUrl(accessToken, domain);
-      await log("info", `已验证站点访问权限: ${validSiteUrl}`);
+      const validSiteUrl = await retryWithDelay(async () => {
+        return checkSiteUrl(accessToken, domain);
+      });
+
+      if (!isReconnection) {
+        await log("info", t("logs.siteVerified", { url: validSiteUrl }));
+      }
 
       // 获取要处理的 URLs
       let urls: string[] = [];
 
       if (rawUrls?.length > 0) {
         urls = rawUrls;
-        await log("info", `📋 使用手动输入的 URLs: ${urls.length} 个`);
+        if (!isReconnection) {
+          await log("info", t("logs.urls_found", { count: urls.length }));
+        }
       } else {
-        // 如果没有提供 URLs，尝试从 Sitemap 获取
-        await log("info", "🗺️ 正在从 Sitemap 获取 URLs...");
-        const [sitemaps, pages] = await getSitemapPages(accessToken, validSiteUrl);
+        if (!isReconnection) {
+          await log("info", t("logs.fetchingSitemap"));
+        }
+        const [sitemaps, pages] = await retryWithDelay(async () => {
+          return getSitemapPages(accessToken, validSiteUrl);
+        });
 
         if (sitemaps.length === 0) {
-          const message = "未找到任何 Sitemap，请先在 Google Search Console 中添加 Sitemap";
+          const message = t("logs.noSitemap");
           await log("error", message);
           throw new Error(message);
         }
 
         urls = pages;
-        await log("info", `📋 从 Sitemap 获取到 ${urls.length} 个 URLs`);
+        if (!isReconnection) {
+          await log("info", t("logs.urls_found", { count: urls.length }));
+        }
       }
 
       if (urls.length === 0) {
-        const message = "没有找到任何需要处理的 URLs";
-        await log("error", message);
-        throw new Error(message);
+        const message = t("logs.noUrls");
+        await log("info", message);
+        // 直接返回结果，不抛出错误
+        const stats = {
+          total: 0,
+          indexed: 0,
+          submitted: 0,
+          crawled: 0,
+          error: 0,
+          unknown: 0
+        };
+
+        // 保存空统计数据
+        await prisma.batchStats.create({
+          data: {
+            batchId: requestState.batchId,
+            appId,
+            ...stats,
+            timestamp: new Date(),
+          },
+        });
+
+        await log("success", t("logs.completed"), undefined, undefined, {
+          progress: 100,
+          stats,
+          isCompleted: true,
+        });
+        activeRequests.delete(requestId);
+        return;
       }
 
-      // 处理 URLs
-      await indexUrls(credentials.client_email, credentials.private_key, validSiteUrl, urls, sse, appId, log);
+      // 过滤掉已处理的 URLs
+      const remainingUrls = urls.filter(url => !requestState!.processedUrls.has(url));
+
+      // 如果所有 URL 都已处理完成，直接返回结果
+      if (remainingUrls.length === 0) {
+        const stats = getStats(requestState.urlStatuses);
+        await log("success", t("logs.all_completed"), undefined, undefined, {
+          progress: 100,
+          stats,
+          isCompleted: true,
+        });
+        activeRequests.delete(requestId);
+        return;
+      }
+
+      // 处理剩余的 URLs
+      await indexUrls(
+        credentials.client_email,
+        credentials.private_key,
+        validSiteUrl,
+        remainingUrls,
+        sse,
+        appId,
+        async (type, message, url, status, data) => {
+          // 更新处理进度
+          if (url) {
+            requestState!.processedUrls.add(url);
+            if (status) {
+              requestState!.urlStatuses.set(url, status as Status);
+            }
+          }
+
+          // 更新进度
+          if (data?.progress) {
+            requestState!.lastProgress = data.progress;
+          }
+
+          await log(type, message, url, status, data);
+        },
+      );
+
+      // 保存最终的统计数据
+      const finalStats = getStats(requestState.urlStatuses);
+      await prisma.batchStats.upsert({
+        where: {
+          batchId: requestState.batchId,
+        },
+        create: {
+          batchId: requestState.batchId,
+          appId,
+          total: finalStats.total,
+          indexed: finalStats.indexed,
+          submitted: finalStats.submitted,
+          crawled: finalStats.crawled,
+          error: finalStats.error,
+          unknown: finalStats.unknown,
+          timestamp: new Date(),
+        },
+        update: {
+          total: finalStats.total,
+          indexed: finalStats.indexed,
+          submitted: finalStats.submitted,
+          crawled: finalStats.crawled,
+          error: finalStats.error,
+          unknown: finalStats.unknown,
+          timestamp: new Date(),
+        },
+      });
+
+      // 发送完成消息
+      await log("success", t("logs.all_completed"), undefined, undefined, {
+        progress: 100,
+        stats: finalStats,
+        isCompleted: true,
+      });
+
+      // 清理请求状态
+      activeRequests.delete(requestId);
+
     } catch (error) {
-      const message = error instanceof Error ? error.message : "未知错误";
+      const message = error instanceof Error ? error.message : t("logs.errors.unknown");
       await log("error", message);
+
+      // 如果是重连且未超过最大重试次数，则尝试重连
+      if (isReconnection && requestState.retryCount < MAX_RETRIES) {
+        requestState.retryCount++;
+        await log("info", t("logs.retrying", { delay: RETRY_DELAY/1000, current: requestState.retryCount, max: MAX_RETRIES }));
+        setTimeout(() => {
+          handleIndexing(appId, rawUrls, saveLog, requestId);
+        }, RETRY_DELAY);
+        return;
+      }
+
       throw error;
     }
   });
 }
 
-export async function GET(request: Request) {
+// 获取统计信息的辅助函数
+function getStats(urlStatuses: Map<string, Status>) {
+  return {
+    total: urlStatuses.size,
+    indexed: Array.from(urlStatuses.values()).filter((s) => s === Status.SubmittedAndIndexed).length,
+    submitted: Array.from(urlStatuses.values()).filter((s) => s === Status.Pending).length,
+    crawled: Array.from(urlStatuses.values()).filter((s) => s === Status.CrawledCurrentlyNotIndexed).length,
+    error: Array.from(urlStatuses.values()).filter((s) =>
+      [Status.Error, Status.Forbidden, Status.RateLimited, Status.Failed].includes(s),
+    ).length,
+    unknown: Array.from(urlStatuses.values()).filter((s) =>
+      [Status.URLIsUnknownToGoogle, Status.DiscoveredCurrentlyNotIndexed].includes(s),
+    ).length,
+  };
+}
+
+export async function GET(request: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "未登录" }, { status: 401 });
+    if (!session?.user) {
+      return new Response("Unauthorized", { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const appId = searchParams.get("appId");
-    const urlsParam = searchParams.get("urls");
+    const rawUrls = searchParams.get("urls");
     const saveLog = searchParams.get("saveLog") === "true";
+    const requestId = searchParams.get("requestId");
 
-    if (!appId) {
-      return NextResponse.json({ error: "缺少必要参数：appId" }, { status: 400 });
+    // 从请求头或 URL 中获取语言设置
+    const locale = searchParams.get("locale") ||
+                  request.headers.get("accept-language")?.split(",")[0]?.split("-")[0] ||
+                  defaultLocale;
+
+    // 验证语言是否支持
+    const finalLocale = (locales as readonly string[]).includes(locale) ? locale : defaultLocale;
+    // 设置系统语言
+    I18nService.setSystemLocale(finalLocale as any);
+
+    if (!appId || !requestId) {
+      return new NextResponse(t("common.errors.missingParams"), { status: 400 });
     }
 
     // 验证应用所有权
@@ -129,33 +352,46 @@ export async function GET(request: Request) {
     });
 
     if (!app || app.userId !== session.user.id) {
-      return NextResponse.json({ error: "无权访问此应用" }, { status: 403 });
+      return NextResponse.json({ error: t("common.errors.unauthorized") }, { status: 403 });
     }
 
-    const urls = urlsParam ? JSON.parse(urlsParam) : [];
-    return handleIndexing(appId, urls, saveLog);
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "未知错误" },
-      { status: error instanceof Error && error.message.includes("找不到") ? 404 : 500 },
+    return handleIndexing(
+      appId,
+      rawUrls ? JSON.parse(rawUrls) : [],
+      saveLog,
+      requestId
     );
+  } catch (error) {
+    console.error(t("common.errors.indexingRequestFailed"), error);
+    return new NextResponse(error instanceof Error ? error.message : t("common.errors.unknown"), { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { appId, urls: rawUrls, saveLog = true } = body;
+    const { appId, urls: rawUrls, saveLog = true, requestId } = body;
+
+    // 从请求头或 URL 中获取语言设置
+    const locale = request.headers.get("accept-language")?.split(",")[0]?.split("-")[0] || defaultLocale;
+    // 验证语言是否支持
+    const finalLocale = (locales as readonly string[]).includes(locale) ? locale : defaultLocale;
+    // 设置系统语言
+    I18nService.setSystemLocale(finalLocale as any);
 
     if (!appId) {
-      return NextResponse.json({ error: "缺少必要参数：appId" }, { status: 400 });
+      return NextResponse.json({ error: t("common.errors.missingAppId") }, { status: 400 });
     }
 
-    return handleIndexing(appId, rawUrls, saveLog);
+    if (!requestId) {
+      return NextResponse.json({ error: t("common.errors.missingRequestId") }, { status: 400 });
+    }
+
+    return handleIndexing(appId, rawUrls, saveLog, requestId);
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "未知错误" },
-      { status: error instanceof Error && error.message.includes("找不到") ? 404 : 500 },
+      { error: error instanceof Error ? error.message : t("common.errors.unknown") },
+      { status: error instanceof Error && error.message.includes(t("common.errors.notFound")) ? 404 : 500 },
     );
   }
 }

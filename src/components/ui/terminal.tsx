@@ -3,6 +3,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "./scroll-area";
+import { useFormatter } from "next-intl";
 
 interface LogEntry {
   type: string;
@@ -17,6 +18,7 @@ interface TerminalProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export function Terminal({ logs, height = "h-[300px]", className, ...props }: TerminalProps) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
+  const format = useFormatter();
 
   React.useEffect(() => {
     if (scrollRef.current) {
@@ -38,7 +40,7 @@ export function Terminal({ logs, height = "h-[300px]", className, ...props }: Te
   };
 
   const formatTimestamp = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString("zh-CN", {
+    return format.dateTime(new Date(timestamp), {
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",

@@ -1,5 +1,6 @@
 import { Status } from "@/shared";
 import picocolors from "picocolors";
+import { t } from "@/i18n";
 
 /**
  * 获取状态对应的 emoji
@@ -30,46 +31,57 @@ export function getStatusEmoji(status: Status): string {
 }
 
 /**
- * 获取状态的颜色处理函数
+ * 获取状态对应的颜色
  */
-export function getStatusColor(status: Status) {
+export function getStatusColor(status: Status): (text: string) => string {
   switch (status) {
     case Status.SubmittedAndIndexed:
       return picocolors.green;
-    case Status.Error:
-    case Status.Forbidden:
-      return picocolors.red;
-    case Status.RateLimited:
-      return picocolors.yellow;
-    default:
+    case Status.DuplicateWithoutUserSelectedCanonical:
+    case Status.PageWithRedirect:
       return picocolors.blue;
+    case Status.CrawledCurrentlyNotIndexed:
+    case Status.DiscoveredCurrentlyNotIndexed:
+    case Status.URLIsUnknownToGoogle:
+      return picocolors.yellow;
+    case Status.RateLimited:
+    case Status.Forbidden:
+    case Status.Error:
+    case Status.Failed:
+      return picocolors.red;
+    default:
+      return picocolors.gray;
   }
 }
 
 /**
- * 获取状态的用户友好描述
+ * 获取状态对应的描述
  */
 export function getStatusDescription(status: Status): string {
   switch (status) {
     case Status.SubmittedAndIndexed:
-      return "已成功索引";
+      return t("logs.status.indexed");
     case Status.DuplicateWithoutUserSelectedCanonical:
-      return "重复内容";
+      return t("status.duplicateContent");
     case Status.CrawledCurrentlyNotIndexed:
-      return "已爬取未索引";
+      return t("logs.status.crawled");
     case Status.DiscoveredCurrentlyNotIndexed:
-      return "已发现未索引";
+      return t("status.crawledNotIndexed");
     case Status.PageWithRedirect:
-      return "页面重定向";
+      return t("status.pageWithRedirect");
     case Status.URLIsUnknownToGoogle:
-      return "未知页面";
+      return t("status.unknownPage");
     case Status.RateLimited:
-      return "请求频率限制";
+      return t("status.rateLimited");
     case Status.Forbidden:
-      return "访问被拒绝";
+      return t("status.forbidden");
     case Status.Error:
-      return "处理错误";
+      return t("status.error");
+    case Status.Failed:
+      return t("status.failed");
+    case Status.Pending:
+      return t("status.pending");
     default:
-      return "未知状态";
+      return t("status.unknown");
   }
 }

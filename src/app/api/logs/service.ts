@@ -104,8 +104,8 @@ export async function getLogs({
           batchId: batch.batchId,
           // 只查询有 URL 的日志
           url: {
-            not: "",
-          },
+            not: ""
+          }
         },
         orderBy: { timestamp: "desc" },
         distinct: ["url"], // 每个URL只取最新的状态
@@ -120,39 +120,49 @@ export async function getLogs({
         logs.map((log) => ({
           url: log.url,
           status: log.status,
+          timestamp: log.timestamp
         })),
       );
 
       // 统计每个URL的最终状态
       logs.forEach((log) => {
         const status = log.status.toUpperCase();
+        console.log(`处理日志状态: ${status} for URL: ${log.url}`);
+
         switch (status) {
-          case "SUCCESS":
+          case Status.SubmittedAndIndexed:
+          case Status.Success:
             statusCounts.indexed++;
             break;
-          case "PENDING":
+          case Status.Pending:
             statusCounts.submitted++;
             break;
-          case "FAILED":
-            statusCounts.error++;
-            break;
-          case "CRAWLED_CURRENTLY_NOT_INDEXED":
+          case Status.CrawledCurrentlyNotIndexed:
             statusCounts.crawled++;
             break;
-          case "URL_IS_UNKNOWN_TO_GOOGLE":
-          case "DISCOVERED_CURRENTLY_NOT_INDEXED":
+          case Status.Failed:
+          case Status.Error:
+          case Status.Forbidden:
+          case Status.RateLimited:
+            statusCounts.error++;
+            break;
+          case Status.URLIsUnknownToGoogle:
+          case Status.DiscoveredCurrentlyNotIndexed:
+          case Status.Unknown:
             statusCounts.unknown++;
             break;
-          case "ERROR":
-          case "FORBIDDEN":
-          case "RATE_LIMITED":
-            statusCounts.error++;
+          default:
+            console.log(`未知状态: ${status} for URL: ${log.url}`);
+            statusCounts.unknown++;
             break;
         }
       });
 
       // 调试日志
-      console.log(`批次 ${batch.batchId} 的统计:`, statusCounts);
+      console.log(`批次 ${batch.batchId} 的统计:`, {
+        ...statusCounts,
+        timestamp: new Date()
+      });
 
       return {
         batchId: batch.batchId,

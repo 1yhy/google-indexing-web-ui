@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createLog, CreateLogParams, getLogs } from "./service";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { t } from "@/i18n";
 
 /**
  * 创建日志记录
@@ -12,8 +13,8 @@ export async function POST(request: NextRequest) {
     const log = await createLog(data);
     return NextResponse.json(log);
   } catch (error) {
-    console.error("创建日志失败:", error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : "创建日志失败" }, { status: 500 });
+    console.error(t("logs.errors.createFailed"), error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : t("logs.errors.createFailed") }, { status: 500 });
   }
 }
 
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "未登录" }, { status: 401 });
+      return NextResponse.json({ error: t("common.errors.unauthorized") }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get("offset") || "0");
 
     if (!appId) {
-      return NextResponse.json({ error: "缺少必要参数：appId" }, { status: 400 });
+      return NextResponse.json({ error: t("common.errors.missingAppId") }, { status: 400 });
     }
 
     // 验证应用所有权
@@ -44,14 +45,14 @@ export async function GET(request: NextRequest) {
     });
 
     if (!app || app.userId !== session.user.id) {
-      return NextResponse.json({ error: "无权访问此应用" }, { status: 403 });
+      return NextResponse.json({ error: t("common.errors.unauthorized") }, { status: 403 });
     }
 
     const result = await getLogs({ appId, batchId, limit, offset });
     return NextResponse.json(result);
   } catch (error) {
-    console.error("获取日志失败:", error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : "获取日志失败" }, { status: 500 });
+    console.error(t("logs.errors.getFailed"), error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : t("logs.errors.getFailed") }, { status: 500 });
   }
 }
 

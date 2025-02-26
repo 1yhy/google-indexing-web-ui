@@ -1,3 +1,5 @@
+import { t } from "@/i18n";
+
 /**
  * Creates an array of chunks from the given array with a specified size.
  * @param arr The array to be chunked.
@@ -43,7 +45,7 @@ export async function fetchRetry(url: string, options: RequestInit, retries: num
     const response = await fetch(url, options);
     if (response.status >= 500) {
       const body = await response.text();
-      throw new Error(`Server error code ${response.status}\n${body}`);
+      throw new Error(`${t("logs.errors.indexStatusFailed")} ${response.status}\n${body}`);
     }
     return response;
   } catch (err) {

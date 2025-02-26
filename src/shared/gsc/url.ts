@@ -1,6 +1,7 @@
 import { webmasters_v3 } from "googleapis";
 import { fetchRetry } from "../utils";
 import { convertToHTTP, convertToHTTPS, convertToSCDomain } from "@/lib/url";
+import { t } from "@/i18n";
 
 /**
  * 转换为 Google Search Console 站点 URL 格式
@@ -25,7 +26,7 @@ export async function getSites(accessToken: string) {
   });
 
   if (sitesResponse.status === 403) {
-    const error = "🔐 服务账号没有访问任何站点的权限";
+    const error = `🔐 ${t("logs.errors.noSiteAccess")}`;
     console.error(error);
     throw new Error(error);
   }
@@ -33,7 +34,7 @@ export async function getSites(accessToken: string) {
   const sitesBody: webmasters_v3.Schema$SitesListResponse = await sitesResponse.json();
 
   if (!sitesBody.siteEntry) {
-    const error = "❌ 未找到任何站点，请先在 Google Search Console 中添加站点并授权";
+    const error = `❌ ${t("logs.errors.noSitesFound")}`;
     console.error(error);
     throw new Error(error);
   }
@@ -48,10 +49,10 @@ export async function getSites(accessToken: string) {
  */
 export async function checkSiteUrl(
   accessToken: string | undefined | null,
-  siteUrl: string | undefined | null,
+  siteUrl: string | undefined | null
 ): Promise<string> {
-  if (!accessToken) throw new Error("访问令牌不能为空");
-  if (!siteUrl) throw new Error("站点 URL 不能为空");
+  if (!accessToken) throw new Error(`❌ ${t("logs.errors.accessTokenRequired")}`);
+  if (!siteUrl) throw new Error(`❌ ${t("logs.errors.siteUrlRequired")}`);
 
   console.log(`🔍 正在验证站点访问权限: ${siteUrl}`);
   const sites = await getSites(accessToken);
@@ -88,7 +89,7 @@ export async function checkSiteUrl(
   }
 
   // 如果没有找到可访问的 URL 格式
-  const error = `❌ 服务账号没有访问此站点的权限\n已尝试的 URL 格式：\n${formattedUrls.join("\n")}`;
+  const error = `🔐 ${t("logs.errors.noSiteAccess")}\n${t("logs.errors.triedUrlFormats")}：\n${formattedUrls.join("\n")}`;
   console.error(error);
   throw new Error(error);
 }
