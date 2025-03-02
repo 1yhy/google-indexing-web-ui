@@ -378,7 +378,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: t("common.errors.missingRequestId") }, { status: 400 });
     }
 
-    return handleIndexing(appId, rawUrls, saveLog, requestId);
+    // Validate rawUrls is an array
+    const urlsArray = Array.isArray(rawUrls) ? rawUrls : [rawUrls];
+
+    return handleIndexing(appId, urlsArray, saveLog, requestId);
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : t("common.errors.unknown") },

@@ -17,14 +17,19 @@ export default function AddAppDialog({ onSuccess }: AddAppDialogProps) {
 
   return (
     <>
-      <Button variant="outline" size="sm" className="gap-2" onClick={() => setOpen(true)}>
+      <Button
+        variant="outline"
+        size="sm"
+        className="gap-2 w-40 md:w-auto"
+        onClick={() => setOpen(true)}
+      >
         <Plus className="w-4 h-4" />
         {t("apps.addNew")}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="w-[95vw] max-h-[65vh] overflow-y-auto max-w-lg md:w-auto md:max-h-none">
           <DialogHeader>
-            <DialogTitle>{t("apps.addNew")}</DialogTitle>
+            <DialogTitle className="text-lg md:text-xl">{t("apps.addNew")}</DialogTitle>
           </DialogHeader>
           <AddAppForm
             onSuccess={() => {

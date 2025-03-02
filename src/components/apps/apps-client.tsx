@@ -96,34 +96,34 @@ export default function AppsClient({ apps: initialApps }: AppsClientProps) {
   };
 
   return (
-    <div className="p-6">
+    <div className="py-4 md:py-6">
       {/* Top navigation */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex gap-4 justify-between items-start mb-6 md:flex-row md:items-center">
         <div className="flex items-center">
           <Link href={getLocalePath("/indexing")} className="text-gray-500 hover:text-gray-700">
             <ChevronLeft className="w-5 h-5" />
           </Link>
-          <h1 className="ml-4 text-xl font-semibold text-gray-900">{t("apps.title")}</h1>
+          <h1 className="ml-4 text-lg font-semibold text-gray-900 md:text-xl">{t("apps.title")}</h1>
         </div>
         <AddAppDialog onSuccess={() => router.refresh()} />
       </div>
 
       {/* Search and operation area */}
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center space-x-4">
+      <div className="flex flex-col gap-4 justify-between items-start mb-6 md:flex-row md:items-center">
+        <div className="w-full md:w-64">
           <Input
             type="text"
             placeholder={t("apps.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-64"
+            className="w-full"
           />
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="w-full md:w-auto">
           <Button
             variant="destructive"
             size="sm"
-            className="gap-2"
+            className="gap-2 w-full md:w-auto"
             onClick={handleDelete}
             disabled={selectedApps.length === 0 || isDeleting}
           >
@@ -133,79 +133,73 @@ export default function AppsClient({ apps: initialApps }: AppsClientProps) {
       </div>
 
       {/* App list table */}
-      <div className="overflow-hidden rounded-lg border">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th
-                scope="col"
-                className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase"
-              >
-                <Checkbox
-                  id="select-all"
-                  checked={selectedApps.length === filteredApps.length && filteredApps.length > 0}
-                  onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
-                />
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase"
-              >
-                {t("apps.domain")}
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase"
-              >
-                {t("apps.appEmail")}
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase"
-              >
-                {t("apps.createdAt")}
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredApps.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-6 py-4 text-sm text-center text-gray-500">
-                  {search ? t("apps.noMatchingApps") : t("apps.noApps")}
-                </td>
-              </tr>
-            ) : (
-              filteredApps.map((app) => (
-                <tr key={app.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
+      <div className="overflow-x-auto md:mx-0">
+        <div className="inline-block min-w-full align-middle">
+          <div className="overflow-hidden rounded-lg border">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 w-10 text-xs font-medium tracking-wider text-left text-gray-500 uppercase md:px-6">
                     <Checkbox
-                      checked={selectedApps.includes(app.id)}
-                      onCheckedChange={(checked) => handleSelect(checked as boolean, app.id)}
+                      id="select-all"
+                      checked={selectedApps.length === filteredApps.length && filteredApps.length > 0}
+                      onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
                     />
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-900 whitespace-nowrap">{app.domain}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{app.appEmail}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
-                    {DateTimeFormatter.format(app.createdAt)}
-                  </td>
+                  </th>
+                  <th className="px-4 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase md:px-6">
+                    {t("apps.domain")}
+                  </th>
+                  <th className="hidden px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase md:table-cell">
+                    {t("apps.appEmail")}
+                  </th>
+                  <th className="hidden px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase md:table-cell">
+                    {t("apps.createdAt")}
+                  </th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredApps.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-4 text-sm text-center text-gray-500 md:px-6">
+                      {search ? t("apps.noMatchingApps") : t("apps.noApps")}
+                    </td>
+                  </tr>
+                ) : (
+                  filteredApps.map((app) => (
+                    <tr key={app.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-4 whitespace-nowrap md:px-6">
+                        <Checkbox
+                          checked={selectedApps.includes(app.id)}
+                          onCheckedChange={(checked) => handleSelect(checked as boolean, app.id)}
+                        />
+                      </td>
+                      <td className="px-4 py-4 text-xs text-gray-900 whitespace-nowrap md:px-6 md:text-sm">{app.domain}</td>
+                      <td className="hidden px-6 py-4 text-sm text-gray-500 whitespace-nowrap md:table-cell">{app.appEmail}</td>
+                      <td className="hidden px-6 py-4 text-sm text-gray-500 whitespace-nowrap md:table-cell">
+                        {DateTimeFormatter.format(app.createdAt)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] max-h-[65vh] max-w-lg">
           <DialogHeader>
-            <DialogTitle>{t("apps.confirmDelete")}</DialogTitle>
-            <DialogDescription>{t("apps.deleteWarning", { count: selectedApps.length })}</DialogDescription>
+            <DialogTitle className="text-lg">{t("apps.confirmDelete")}</DialogTitle>
+            <DialogDescription className="text-sm">
+              {t("apps.deleteWarning", { count: selectedApps.length })}
+            </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+          <DialogFooter className="flex-col gap-2 md:flex-row">
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="w-full md:w-auto">
               {t("common.cancel")}
             </Button>
-            <Button variant="destructive" onClick={confirmDelete} disabled={isDeleting}>
+            <Button variant="destructive" onClick={confirmDelete} disabled={isDeleting} className="w-full md:w-auto">
               {isDeleting ? t("apps.deleting") : t("common.confirm")}
             </Button>
           </DialogFooter>

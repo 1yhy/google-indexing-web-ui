@@ -33,7 +33,6 @@ export default async function LogsPage({ params: { locale }, searchParams }: Log
   }
 
   try {
-    // 直接使用 service 层函数
     const { batches, total } = await getLogs({
       userId: session.user.id,
       limit: PAGE_SIZE,
@@ -42,9 +41,13 @@ export default async function LogsPage({ params: { locale }, searchParams }: Log
 
     const totalPages = Math.ceil(total / PAGE_SIZE);
 
-    return <LogsClient logBatches={batches} currentPage={currentPage} totalPages={totalPages} />;
+    return (
+      <LogsClient logBatches={batches} currentPage={currentPage} totalPages={totalPages} />
+    );
   } catch (error) {
     console.error("Failed to fetch logs:", error);
-    return <LogsClient logBatches={[]} currentPage={1} totalPages={0} />;
+    return (
+      <LogsClient logBatches={[]} currentPage={1} totalPages={0} />
+    );
   }
 }

@@ -69,17 +69,23 @@ export default function AddAppForm({ onSuccess }: AddAppFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid gap-6">
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid gap-4">
         <div className="space-y-2">
           <label
             htmlFor="appEmail"
-            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            className="text-sm md:text-base font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
           >
             {t("apps.appEmail")}
           </label>
-          <Input id="appEmail" name="appEmail" placeholder={t("apps.appEmailPlaceholder")} required />
-          <p className="flex gap-1 items-center text-sm text-muted-foreground">
+          <Input
+            id="appEmail"
+            name="appEmail"
+            placeholder={t("apps.appEmailPlaceholder")}
+            required
+            className="text-sm md:text-base"
+          />
+          <p className="flex gap-1 items-center text-xs md:text-sm text-muted-foreground">
             <HelpCircle className="w-4 h-4" />
             {t("apps.appEmailHelp")}
           </p>
@@ -88,12 +94,18 @@ export default function AddAppForm({ onSuccess }: AddAppFormProps) {
         <div className="space-y-2">
           <label
             htmlFor="domain"
-            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            className="text-sm md:text-base font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
           >
             {t("apps.domain")}
           </label>
-          <Input id="domain" name="domain" placeholder={t("apps.domainPlaceholder")} required />
-          <p className="flex gap-1 items-center text-sm text-muted-foreground">
+          <Input
+            id="domain"
+            name="domain"
+            placeholder={t("apps.domainPlaceholder")}
+            required
+            className="text-sm md:text-base"
+          />
+          <p className="flex gap-1 items-center text-xs md:text-sm text-muted-foreground">
             <HelpCircle className="w-4 h-4" />
             {t("apps.domainHelp")}
           </p>
@@ -102,7 +114,7 @@ export default function AddAppForm({ onSuccess }: AddAppFormProps) {
         <div className="space-y-2">
           <label
             htmlFor="credentials"
-            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            className="text-sm md:text-base font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
           >
             {t("apps.jsonKey")}
           </label>
@@ -111,18 +123,30 @@ export default function AddAppForm({ onSuccess }: AddAppFormProps) {
             name="credentials"
             placeholder={t("apps.jsonKeyPlaceholder")}
             required
-            className="font-mono text-sm"
-            rows={10}
+            className="font-mono text-xs md:text-sm min-h-[150px]"
+            rows={8}
           />
-          <p className="flex gap-1 items-center text-sm text-muted-foreground">
+          <p className="flex gap-1 items-center text-xs md:text-sm text-muted-foreground">
             <HelpCircle className="w-4 h-4" />
             {t("apps.jsonKeyHelp")}
           </p>
         </div>
       </div>
 
-      <div className="flex justify-end">
-        <Button type="submit" disabled={loading}>
+      <div className="flex flex-col md:flex-row justify-end gap-2 pt-4">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => onSuccess?.()}
+          className="w-full md:w-auto text-sm md:text-base"
+        >
+          {t("common.cancel")}
+        </Button>
+        <Button
+          type="submit"
+          disabled={loading}
+          className="w-full md:w-auto text-sm md:text-base"
+        >
           {loading ? t("apps.adding") : t("apps.add")}
         </Button>
       </div>

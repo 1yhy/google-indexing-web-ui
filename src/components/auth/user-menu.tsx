@@ -8,9 +8,10 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User } from "lucide-react";
+import { User, LogOut } from "lucide-react";
 import { LoginButton } from "@/components/auth/login-button";
 import { useTranslations } from "next-intl";
 import { useLocale } from "next-intl";
@@ -38,28 +39,31 @@ export function UserMenu() {
     );
   }
 
+  const handleLogout = () => {
+    signOut({ callbackUrl: `/${locale}/indexing` });
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative w-8 h-8 rounded-full">
           <Avatar className="w-8 h-8">
-            <AvatarImage src={session.user?.image || ""} alt={session.user?.name || ""} />
-            <AvatarFallback>{session.user?.name?.[0] || "?"}</AvatarFallback>
+            <AvatarImage src={session?.user?.image ?? ""} alt={session?.user?.name ?? ""} />
+            <AvatarFallback>{session?.user?.name?.[0]}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end">
-        <div className="flex gap-2 p-2">
-          <div className="flex flex-col space-y-1 leading-none">
-            {session.user?.name && <p className="font-medium">{session.user.name}</p>}
-            {session.user?.email && (
-              <p className="w-[200px] truncate text-sm text-muted-foreground">{session.user.email}</p>
-            )}
+        <DropdownMenuLabel className="font-normal">
+          <div className="flex flex-col space-y-1">
+            <p className="text-sm font-medium leading-none">{session?.user?.name}</p>
+            <p className="text-xs leading-none text-muted-foreground">{session?.user?.email}</p>
           </div>
-        </div>
+        </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="cursor-pointer" onSelect={() => signOut({ callbackUrl: `/${locale}/indexing` })}>
-          {t("auth.logout")}
+        <DropdownMenuItem className="text-sm" onClick={handleLogout}>
+          <LogOut className="mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
+          <span>{t("auth.logout")}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -49,7 +49,7 @@ export function Terminal({ logs, height = "h-[300px]", className, ...props }: Te
   };
 
   return (
-    <div className={cn("rounded-md border bg-zinc-950", className)} {...props}>
+    <div className={cn("h-full rounded-md border bg-zinc-950", className)} {...props}>
       <ScrollArea className={height}>
         <div className="p-4 font-mono text-xs leading-relaxed">
           {logs.map((log, index) => {
@@ -57,10 +57,10 @@ export function Terminal({ logs, height = "h-[300px]", className, ...props }: Te
             const time = formatTimestamp(log.timestamp);
 
             return (
-              <div key={index} className="space-y-1">
-                <div className="flex items-start space-x-2">
-                  <span className={color}>[{time}]</span>
-                  <span className={color}>{log.message}</span>
+              <div key={index} className="mb-2 space-y-2">
+                <div className="flex flex-col md:flex-row md:items-start md:space-x-2">
+                  <span className={cn(color, "mb-1 shrink-0 md:mb-0")}>[{time}]</span>
+                  <span className={cn(color, "whitespace-pre-wrap break-words")}>{log.message}</span>
                 </div>
               </div>
             );

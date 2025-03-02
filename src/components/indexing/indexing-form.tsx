@@ -66,13 +66,13 @@ export function IndexingForm({ apps }: Props) {
   };
 
   // 创建新的 SSE 连接
-  const createEventSource = (requestId: string) => {
+  const createEventSource = (requestId: string, urlList: string[]) => {
     cleanup();
 
     const eventSource = new EventSource(
       `/api/indexing?${new URLSearchParams({
         appId: selectedAppId,
-        urls: urls.length > 0 ? JSON.stringify(urls) : "",
+        urls: urlList.length > 0 ? JSON.stringify(urlList) : "",
         saveLog: saveLog.toString(),
         requestId,
       })}`,
@@ -174,7 +174,7 @@ export function IndexingForm({ apps }: Props) {
       setCurrentRequestId(requestId);
 
       // create SSE connection
-      createEventSource(requestId);
+      createEventSource(requestId, urlList);
 
     } catch (error) {
       console.error("Submit error:", error);
@@ -250,22 +250,27 @@ export function IndexingForm({ apps }: Props) {
           <Terminal logs={logs} height="h-[350px]" />
 
           {stats.total > 0 && (
-            <div className="flex space-x-4 text-sm">
-              <span className="text-green-600">
-                {t("indexing.stats.indexed")}: {stats.indexed}
-              </span>
-              <span className="text-yellow-600">
-                {t("indexing.stats.submitted")}: {stats.submitted}
-              </span>
-              <span className="text-blue-600">
-                {t("indexing.stats.crawled")}: {stats.crawled}
-              </span>
-              <span className="text-gray-600">
-                {t("indexing.stats.unknown")}: {stats.unknown}
-              </span>
-              <span className="text-gray-600">
-                {t("indexing.stats.total")}: {stats.total}
-              </span>
+            <div className="grid grid-cols-2 gap-2 text-sm md:flex md:space-x-4 md:gap-0">
+              <div className="flex items-center space-x-1 text-green-600">
+                <span className="w-20 md:w-auto">{t("indexing.stats.indexed")}:</span>
+                <span className="font-medium">{stats.indexed}</span>
+              </div>
+              <div className="flex items-center space-x-1 text-yellow-600">
+                <span className="w-20 md:w-auto">{t("indexing.stats.submitted")}:</span>
+                <span className="font-medium">{stats.submitted}</span>
+              </div>
+              <div className="flex items-center space-x-1 text-blue-600">
+                <span className="w-20 md:w-auto">{t("indexing.stats.crawled")}:</span>
+                <span className="font-medium">{stats.crawled}</span>
+              </div>
+              <div className="flex items-center space-x-1 text-gray-600">
+                <span className="w-20 md:w-auto">{t("indexing.stats.unknown")}:</span>
+                <span className="font-medium">{stats.unknown}</span>
+              </div>
+              <div className="flex items-center space-x-1 text-gray-600">
+                <span className="w-20 md:w-auto">{t("indexing.stats.total")}:</span>
+                <span className="font-medium">{stats.total}</span>
+              </div>
             </div>
           )}
         </div>

@@ -31,13 +31,13 @@ export default async function IndexingPage() {
     : [];
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">{t("app.title")}</h1>
+    <div className="py-4 space-y-4 md:py-6 md:space-y-6">
+      <div className="flex gap-4 md:flex-row md:justify-between md:items-center md:gap-0">
+        <h1 className="text-lg font-bold md:text-2xl">{t("app.title")}</h1>
         {session?.user ? (
           <Link href={`/${locale}/apps`}>
-            <Button variant="outline" size="sm" className="gap-2">
-              <Plus className="w-4 h-4" />
+            <Button variant="outline" size="sm" className="gap-2 text-sm w-30 md:w-auto">
+              <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" />
               {t("app.addApp")}
             </Button>
           </Link>
@@ -45,12 +45,14 @@ export default async function IndexingPage() {
       </div>
 
       {apps.length === 0 ? (
-        <div className="py-12 text-center bg-white rounded-lg">
-          <p className="mb-4 text-gray-500">{session?.user ? t("app.pleaseAddApp") : t("app.pleaseLogin")}</p>
+        <div className="py-8 text-center bg-white rounded-lg md:py-12">
+          <p className="mb-4 text-sm text-gray-500 md:text-base">
+            {session?.user ? t("app.pleaseAddApp") : t("app.pleaseLogin")}
+          </p>
           {session?.user ? (
             <Link href={`/${locale}/apps`}>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Plus className="w-4 h-4" />
+              <Button variant="outline" size="sm" className="gap-2 w-full text-sm md:w-auto">
+                <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" />
                 {t("app.addApp")}
               </Button>
             </Link>
@@ -64,7 +66,7 @@ export default async function IndexingPage() {
           )}
         </div>
       ) : (
-        <Suspense fallback={<div>{t("app.loading")}</div>}>
+        <Suspense fallback={<div className="text-sm md:text-base">{t("app.loading")}</div>}>
           <IndexingForm apps={apps} />
         </Suspense>
       )}
