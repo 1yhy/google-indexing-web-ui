@@ -1,41 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import LogsClient from "@/components/logs/logs-client";
 import { Status } from "@/shared";
-import { IndexLog, App } from "@prisma/client";
 import { auth } from "@/auth";
 import { unstable_setRequestLocale } from "next-intl/server";
 import { locales } from "@/i18n";
 import { notFound } from "next/navigation";
 
 const PAGE_SIZE = 10;
-
-interface LogBatch {
-  batchId: string;
-  appId: string;
-  appName: string;
-  domain: string;
-  timestamp: Date;
-  logs: Array<{
-    id: string;
-    url: string;
-    status: Status;
-    message: string;
-    type: string;
-    timestamp: Date;
-  }>;
-  stats: {
-    total: number;
-    indexed: number;
-    submitted: number;
-    crawled: number;
-    error: number;
-    unknown: number;
-  };
-}
-
-type LogWithApp = IndexLog & {
-  app: App;
-};
 
 interface LogsPageProps {
   params: {
@@ -47,12 +18,12 @@ interface LogsPageProps {
 }
 
 export default async function LogsPage({ params: { locale }, searchParams }: LogsPageProps) {
-  // 验证语言参数
+  // verify language parameter
   if (!locales.includes(locale as any)) {
     notFound();
   }
 
-  // 启用服务器端国际化
+  // enable server-side internationalization
   unstable_setRequestLocale(locale);
 
   const session = await auth();
@@ -62,77 +33,67 @@ export default async function LogsPage({ params: { locale }, searchParams }: Log
     return <LogsClient logBatches={[]} currentPage={1} totalPages={0} />;
   }
 
-  // 获取批次列表（按时间倒序）
-  const batches = await prisma.indexLog.groupBy({
-    by: ["batchId"],
-    where: {
-      appId: {
-        in: (await prisma.app.findMany({
-          where: { userId: session.user.id },
-          select: { id: true },
-        })).map(app => app.id),
-      },
-      url: { not: "" },
-    },
-    _count: {
-      url: true,
-    },
-    orderBy: {
-      _max: {
-        timestamp: "desc",
-      },
-    },
-    take: PAGE_SIZE,
-    skip: (currentPage - 1) * PAGE_SIZE,
-  });
+  // get all app ids of user
+  const userAppIds = (await prisma.app.findMany({
+    where: { userId: session.user.id },
+    select: { id: true },
+  })).map(app => app.id);
 
-  // 获取每个批次的详细信息
-  const batchesWithDetails = await Promise.all(
-    batches.map(async (batch) => {
-      // 获取批次的统计数据
-      const stats = batch.batchId ? await prisma.batchStats.findUnique({
-        where: { batchId: batch.batchId },
-      }) : null;
+  // use subquery to get batch ids of pagination
+  const batchIdsQuery = await prisma.$queryRaw<{ batchId: string }[]>`
+    WITH BatchTimestamps AS (
+      SELECT "batchId", MAX("timestamp") as last_activity
+      FROM "IndexLog"
+      WHERE "appId" = ANY(${userAppIds})
+        AND "url" != ''
+      GROUP BY "batchId"
+    )
+    SELECT "batchId"
+    FROM BatchTimestamps
+    ORDER BY last_activity DESC
+    LIMIT ${PAGE_SIZE}
+    OFFSET ${(currentPage - 1) * PAGE_SIZE}
+  `;
 
-      // 获取批次的第一条日志（用于时间戳和应用信息）
-      const firstLog = await prisma.indexLog.findFirst({
-        where: {
-          batchId: batch.batchId,
-          url: { not: "" },
-        },
-        orderBy: { timestamp: "asc" },
-        include: {
-          app: {
-            select: {
-              domain: true,
-              name: true
-            },
+  const batchIds = batchIdsQuery.map(b => b.batchId).filter(Boolean);
+
+  // get all data needed at once
+  const [batchesData, batchStats] = await Promise.all([
+    // get basic info and logs of batch
+    prisma.indexLog.findMany({
+      where: {
+        batchId: { in: batchIds },
+      },
+      orderBy: { timestamp: "asc" },
+      include: {
+        app: {
+          select: {
+            domain: true,
+            name: true,
           },
         },
-      });
+      },
+    }),
+    // get stats of batch
+    prisma.batchStats.findMany({
+      where: {
+        batchId: { in: batchIds },
+      },
+    }),
+  ]);
 
-      // 获取批次的所有日志
-      const logs = await prisma.indexLog.findMany({
-        where: {
-          batchId: batch.batchId,
-        },
-        orderBy: { timestamp: "asc" },
-      });
-
-      return {
-        batchId: batch.batchId || "",
-        appId: firstLog?.appId || "",
-        appName: firstLog?.app?.name || "",
-        domain: firstLog?.app?.domain || "",
-        timestamp: firstLog?.timestamp.toISOString() || new Date().toISOString(),
-        stats: stats ? {
-          total: stats.total,
-          indexed: stats.indexed,
-          submitted: stats.submitted,
-          crawled: stats.crawled,
-          error: stats.error,
-          unknown: stats.unknown,
-        } : {
+  // organize data by batch id
+  const batchesMap = new Map();
+  batchesData.forEach(log => {
+    if (!batchesMap.has(log.batchId)) {
+      batchesMap.set(log.batchId, {
+        batchId: log.batchId,
+        appId: log.appId,
+        appName: log.app.name,
+        domain: log.app.domain,
+        timestamp: log.timestamp.toISOString(),
+        logs: [],
+        stats: {
           total: 0,
           indexed: 0,
           submitted: 0,
@@ -140,34 +101,47 @@ export default async function LogsPage({ params: { locale }, searchParams }: Log
           error: 0,
           unknown: 0,
         },
-        logs: logs.map(log => ({
-          id: log.id,
-          url: log.url || "",
-          status: log.status as Status,
-          type: log.type,
-          message: log.message || "",
-          timestamp: log.timestamp.toISOString(),
-        })),
+      });
+    }
+    batchesMap.get(log.batchId).logs.push({
+      id: log.id,
+      url: log.url || "",
+      status: log.status as Status,
+      type: log.type,
+      message: log.message || "",
+    });
+  });
+
+  // add stats
+  batchStats.forEach(stats => {
+    if (batchesMap.has(stats.batchId)) {
+      batchesMap.get(stats.batchId).stats = {
+        total: stats.total,
+        indexed: stats.indexed,
+        submitted: stats.submitted,
+        crawled: stats.crawled,
+        error: stats.error,
+        unknown: stats.unknown,
       };
-    }),
-  );
+    }
+  });
 
-  // 获取总批次数
-  const total = await prisma.indexLog.groupBy({
-    by: ["batchId"],
-    where: {
-      appId: {
-        in: (await prisma.app.findMany({
-          where: { userId: session.user.id },
-          select: { id: true },
-        })).map(app => app.id),
-      },
-      url: { not: "" },
-    },
-    _count: true,
-  }).then(result => result.length);
+  // get total batches (use more efficient count query)
+  const totalBatches = await prisma.$queryRaw<[{ count: number }]>`
+    SELECT COUNT(DISTINCT "batchId") as count
+    FROM "IndexLog"
+    WHERE "appId" = ANY(${userAppIds})
+      AND "url" != ''
+      AND "batchId" IS NOT NULL
+  `;
 
+  const total = Number(totalBatches[0]?.count || 0);
   const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  // sort batches by time in descending order
+  const batchesWithDetails = Array.from(batchesMap.values()).sort((a, b) =>
+    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  );
 
   return <LogsClient logBatches={batchesWithDetails} currentPage={currentPage} totalPages={totalPages} />;
 }

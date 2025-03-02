@@ -27,7 +27,7 @@ interface App {
   domain: string;
   appEmail: string;
   description: string | null;
-  createdAt: string;
+  createdAt: Date;
 }
 
 interface AppsClientProps {

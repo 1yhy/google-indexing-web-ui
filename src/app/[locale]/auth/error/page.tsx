@@ -8,7 +8,6 @@ export default async function AuthErrorPage({
   searchParams: { error?: string };
   params: { locale: string };
 }) {
-  // 启用静态渲染
   unstable_setRequestLocale(locale);
 
   const t = await getTranslations();

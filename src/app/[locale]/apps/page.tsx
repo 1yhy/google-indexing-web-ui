@@ -29,19 +29,13 @@ export default async function AppsPage() {
         })
       : [];
 
-    // 转换日期为 ISO 字符串
-    const formattedApps = apps.map((app) => ({
-      ...app,
-      createdAt: app.createdAt.toISOString(),
-    }));
-
     return (
       <div className="container mx-auto max-w-[1200px]">
-        <AppsClient apps={formattedApps} />
+        <AppsClient apps={apps} />
       </div>
     );
   } catch (error) {
-    console.error("获取应用列表失败:", error);
+    console.error("fetch apps error:", error);
     return (
       <div className="container mx-auto max-w-[1200px]">
         <div className="p-6">

@@ -5,7 +5,7 @@ import { auth } from "@/auth";
 import "@/styles/globals.css";
 import { Providers } from "@/components/providers";
 import { notFound } from "next/navigation";
-import { locales } from "@/i18n";
+import { locales, t } from "@/i18n";
 import { getMessages, unstable_setRequestLocale } from "next-intl/server";
 import { IntlProvider } from "@/components/intl-provider";
 
@@ -19,21 +19,27 @@ interface RootLayoutProps {
 }
 
 export async function generateMetadata({ params: { locale } }: RootLayoutProps): Promise<Metadata> {
-  const messages: any = await getMessages({ locale });
-
-  return {
-    title: messages?.app?.title || "Google Indexing Web UI",
-    description: messages?.app?.description || "A web interface for Google Indexing API",
-  };
-}
-
-export default async function RootLayout({ children, params: { locale } }: RootLayoutProps) {
-  // 验证语言参数
+  // verify language parameter
   if (!locales.includes(locale as any)) {
     notFound();
   }
 
-  // 启用静态渲染
+  return {
+    title: t("app.title"),
+    description: t("app.description"),
+    icons: {
+      icon: "/favicon.ico",
+    },
+  };
+}
+
+export default async function RootLayout({ children, params: { locale } }: RootLayoutProps) {
+  // verify language parameter
+  if (!locales.includes(locale as any)) {
+    notFound();
+  }
+
+  // enable static rendering
   unstable_setRequestLocale(locale);
 
   const [session, messages] = await Promise.all([auth(), getMessages({ locale })]);
