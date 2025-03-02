@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ChevronLeft, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useTranslations, useFormatter } from "next-intl";
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n";
 import { useRouter } from "next/navigation";
 import { DateTimeFormatter } from "@/lib/date";
@@ -71,7 +71,7 @@ export default function LogsClient({ logBatches, currentPage, totalPages }: Logs
 
   return (
     <div className="p-6">
-      {/* 顶部导航 */}
+      {/* top navigation */}
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center">
           <Link href="/indexing" className="text-gray-500 hover:text-gray-700">
@@ -81,7 +81,7 @@ export default function LogsClient({ logBatches, currentPage, totalPages }: Logs
         </div>
       </div>
 
-      {/* 日志批次表格 */}
+      {/* log batch table */}
       <div className="overflow-hidden rounded-lg border">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -148,7 +148,7 @@ export default function LogsClient({ logBatches, currentPage, totalPages }: Logs
         </table>
       </div>
 
-      {/* 分页控件 */}
+      {/* pagination */}
       {totalPages > 1 && (
         <div className="flex gap-2 justify-center mt-4">
           <Button
@@ -175,7 +175,7 @@ export default function LogsClient({ logBatches, currentPage, totalPages }: Logs
         </div>
       )}
 
-      {/* 日志详情弹窗 */}
+      {/* log details dialog */}
       <Dialog open={!!selectedBatch} onOpenChange={() => setSelectedBatch(null)}>
         <DialogContent className="max-w-4xl">
           <DialogHeader>

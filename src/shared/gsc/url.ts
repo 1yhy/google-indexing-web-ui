@@ -4,7 +4,7 @@ import { convertToHTTP, convertToHTTPS, convertToSCDomain } from "@/lib/url";
 import { t } from "@/i18n";
 
 /**
- * 转换为 Google Search Console 站点 URL 格式
+ * Convert to Google Search Console site URL format
  */
 export function convertToSiteUrl(input: string) {
   if (input.startsWith("http://") || input.startsWith("https://")) {
@@ -14,10 +14,10 @@ export function convertToSiteUrl(input: string) {
 }
 
 /**
- * 获取服务账号关联的站点列表
+ * Get the list of sites associated with the service account
  */
 export async function getSites(accessToken: string) {
-  console.log("🔍 正在获取站点列表...");
+  console.log("🔍 Getting site list...");
   const sitesResponse = await fetchRetry("https://www.googleapis.com/webmasters/v3/sites", {
     headers: {
       "Content-Type": "application/json",
@@ -26,7 +26,7 @@ export async function getSites(accessToken: string) {
   });
 
   if (sitesResponse.status === 403) {
-    const error = `🔐 ${t("logs.errors.noSiteAccess")}`;
+    const error = `${t("logs.errors.noSiteAccess")}`;
     console.error(error);
     throw new Error(error);
   }
@@ -34,31 +34,31 @@ export async function getSites(accessToken: string) {
   const sitesBody: webmasters_v3.Schema$SitesListResponse = await sitesResponse.json();
 
   if (!sitesBody.siteEntry) {
-    const error = `❌ ${t("logs.errors.noSitesFound")}`;
+    const error = `${t("logs.errors.noSitesFound")}`;
     console.error(error);
     throw new Error(error);
   }
 
   const sites = sitesBody.siteEntry.map((x) => x.siteUrl);
-  console.log("📋 找到以下站点:", sites);
+  console.log("📋 Found the following sites:", sites);
   return sites;
 }
 
 /**
- * 验证站点 URL 是否可访问
+ * Check if the site URL is accessible
  */
 export async function checkSiteUrl(
   accessToken: string | undefined | null,
   siteUrl: string | undefined | null
 ): Promise<string> {
-  if (!accessToken) throw new Error(`❌ ${t("logs.errors.accessTokenRequired")}`);
-  if (!siteUrl) throw new Error(`❌ ${t("logs.errors.siteUrlRequired")}`);
+  if (!accessToken) throw new Error(`${t("logs.errors.accessTokenRequired")}`);
+  if (!siteUrl) throw new Error(`${t("logs.errors.siteUrlRequired")}`);
 
-  console.log(`🔍 正在验证站点访问权限: ${siteUrl}`);
+  console.log(`🔍 Checking site access permission: ${siteUrl}`);
   const sites = await getSites(accessToken);
   const formattedUrls: string[] = [];
 
-  // 转换站点 URL 为所有可能的格式
+  // Convert site URL to all possible formats
   if (siteUrl.startsWith("https://")) {
     formattedUrls.push(siteUrl);
     formattedUrls.push(convertToHTTP(siteUrl.replace("https://", "")));
@@ -72,33 +72,33 @@ export async function checkSiteUrl(
     formattedUrls.push(convertToHTTP(siteUrl.replace("sc-domain:", "")));
     formattedUrls.push(convertToHTTPS(siteUrl.replace("sc-domain:", "")));
   } else {
-    // 处理纯域名的情况
+    // Handle pure domain name case
     formattedUrls.push(`https://${siteUrl}/`);
     formattedUrls.push(`http://${siteUrl}/`);
     formattedUrls.push(`sc-domain:${siteUrl}`);
   }
 
-  console.log("📋 尝试以下 URL 格式:", formattedUrls);
+  console.log("📋 Trying the following URL formats:", formattedUrls);
 
-  // 检查是否有可访问的 URL 格式
+  // Check if there is an accessible URL format
   for (const formattedUrl of formattedUrls) {
     if (sites.includes(formattedUrl)) {
-      console.log(`✅ 找到可访问的 URL 格式: ${formattedUrl}`);
+      console.log(`✅ Found an accessible URL format: ${formattedUrl}`);
       return formattedUrl;
     }
   }
 
-  // 如果没有找到可访问的 URL 格式
-  const error = `🔐 ${t("logs.errors.noSiteAccess")}\n${t("logs.errors.triedUrlFormats")}：\n${formattedUrls.join("\n")}`;
+  // If no accessible URL format is found
+  const error = `${t("logs.errors.noSiteAccess")}\n${t("logs.errors.triedUrlFormats")}：\n${formattedUrls.join("\n")}`;
   console.error(error);
   throw new Error(error);
 }
 
 /**
- * 验证和格式化自定义 URLs
+ * Validate and format custom URLs
  */
 export function checkCustomUrls(siteUrl: string, urls: string[]) {
-  console.log(`🔍 正在检查 ${urls.length} 个 URL 的格式...`);
+  console.log(`🔍 Checking ${urls.length} URLs...`);
   const protocol = siteUrl.startsWith("http://") ? "http://" : "https://";
   const domain = siteUrl.replace("https://", "").replace("http://", "").replace("sc-domain:", "");
 
@@ -106,19 +106,19 @@ export function checkCustomUrls(siteUrl: string, urls: string[]) {
     url = url.trim();
     let formattedUrl: string;
     if (url.startsWith("/")) {
-      // 相对路径 (例如: /about)
+      // Relative path (e.g., /about)
       formattedUrl = `${protocol}${domain}${url}`;
     } else if (url.startsWith("http://") || url.startsWith("https://")) {
-      // 完整 URL (例如: https://domain.com/about)
+      // Full URL (e.g., https://domain.com/about)
       formattedUrl = url;
     } else if (url.startsWith(domain)) {
-      // 不带协议的完整 URL (例如: domain.com/about)
+      // Full URL without protocol (e.g., domain.com/about)
       formattedUrl = `${protocol}${url}`;
     } else {
-      // 不带斜杠的相对路径 (例如: about)
+      // Relative path without slash (e.g., about)
       formattedUrl = `${protocol}${domain}/${url}`;
     }
-    console.log(`📝 格式化 URL: ${url} -> ${formattedUrl}`);
+    console.log(`📝 Formatted URL: ${url} -> ${formattedUrl}`);
     return formattedUrl;
   });
 

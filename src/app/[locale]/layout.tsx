@@ -47,7 +47,7 @@ export default async function RootLayout({ children, params: { locale } }: RootL
   return (
     <html lang={locale}>
       <body className={inter.className}>
-        <IntlProvider locale={locale} messages={messages}>
+        <IntlProvider locale={locale} messages={messages as Record<string, string>}>
           <Providers session={session}>{children}</Providers>
         </IntlProvider>
         <Toaster />

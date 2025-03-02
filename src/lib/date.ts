@@ -1,29 +1,30 @@
 /**
- * 日期时间格式化工具类
+ * date time formatter class
  */
 export class DateTimeFormatter {
   /**
-   * 格式化日期时间为标准格式：YYYY-MM-DD HH:mm:ss
-   * @param date 日期字符串或Date对象
-   * @returns 格式化后的日期时间字符串
+   * format date time to standard format: YYYY-MM-DD HH:mm:ss
+   * @param date date string or Date object
+   * @returns formatted date time string
    */
   static format(date: string | Date): string {
     const d = date instanceof Date ? date : new Date(date);
-
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const hours = String(d.getHours()).padStart(2, '0');
-    const minutes = String(d.getMinutes()).padStart(2, '0');
-    const seconds = String(d.getSeconds()).padStart(2, '0');
-
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    return d.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+      hourCycle: 'h23'
+    }).replace(/\//g, '-');
   }
 
   /**
-   * 格式化日期为标准格式：YYYY-MM-DD
-   * @param date 日期字符串或Date对象
-   * @returns 格式化后的日期字符串
+   * format date to standard format: YYYY-MM-DD
+   * @param date date string or Date object
+   * @returns formatted date string
    */
   static formatDate(date: string | Date): string {
     const d = date instanceof Date ? date : new Date(date);
@@ -36,9 +37,9 @@ export class DateTimeFormatter {
   }
 
   /**
-   * 格式化时间为标准格式：HH:mm:ss
-   * @param date 日期字符串或Date对象
-   * @returns 格式化后的时间字符串
+   * format time to standard format: HH:mm:ss
+   * @param date date string or Date object
+   * @returns formatted time string
    */
   static formatTime(date: string | Date): string {
     const d = date instanceof Date ? date : new Date(date);

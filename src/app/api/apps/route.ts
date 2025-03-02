@@ -14,12 +14,12 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { domain, appEmail, credentials } = body;
 
-    // 验证必填字段
+    // verify required fields
     if (!domain || !appEmail || !credentials) {
       return NextResponse.json({ error: t("apps.errors.missingFields") }, { status: 400 });
     }
 
-    // 解析服务账号凭据
+    // parse service account credentials
     let parsedCredentials;
     try {
       parsedCredentials = JSON.parse(credentials);
@@ -27,21 +27,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: t("apps.errors.invalidJsonFormat") }, { status: 400 });
     }
 
-    // 验证服务账号凭据
+    // verify service account credentials
     const isValid = await validateServiceAccount(parsedCredentials.client_email, parsedCredentials.private_key, domain);
 
     if (!isValid) {
       return NextResponse.json({ error: t("apps.errors.invalidCredentials") }, { status: 400 });
     }
 
-    // 创建应用并关联用户
+    // create app and associate with user
     const app = await prisma.app.create({
       data: {
         name: domain,
         domain,
         appEmail,
         jsonKey: credentials,
-        userId: session.user.id, // 关联到当前登录用户
+        userId: session.user.id, // associate with current login user
       },
     });
 
@@ -59,7 +59,7 @@ export async function GET() {
       return NextResponse.json({ error: t("common.errors.unauthorized") }, { status: 401 });
     }
 
-    // 只获取当前用户的应用
+    // get apps of current user
     const apps = await prisma.app.findMany({
       where: {
         userId: session.user.id,
@@ -82,9 +82,9 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: t("apps.selectToDelete") }, { status: 400 });
     }
 
-    // 使用事务确保数据一致性
+    // use transaction to ensure data consistency
     await prisma.$transaction(async (tx) => {
-      // 1. 删除相关的 URL 缓存
+      // 1. delete related URL cache
       await tx.urlCache.deleteMany({
         where: {
           appId: {
@@ -93,7 +93,7 @@ export async function DELETE(request: Request) {
         },
       });
 
-      // 2. 删除相关的索引日志
+      // 2. delete related indexing logs
       await tx.indexLog.deleteMany({
         where: {
           appId: {
@@ -102,7 +102,7 @@ export async function DELETE(request: Request) {
         },
       });
 
-      // 3. 删除相关的普通日志
+      // 3. delete related normal logs
       await tx.log.deleteMany({
         where: {
           appId: {
@@ -111,7 +111,7 @@ export async function DELETE(request: Request) {
         },
       });
 
-      // 4. 最后删除应用
+      // 4. delete apps
       await tx.app.deleteMany({
         where: {
           id: {

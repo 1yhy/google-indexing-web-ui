@@ -8,7 +8,7 @@ export function IntlProvider({
   children,
 }: {
   locale: string;
-  messages: any;
+  messages: Record<string, string>;
   children: React.ReactNode;
 }) {
   return (

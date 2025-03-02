@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 
-// 在开发环境中避免热重载时创建多个实例
+// avoid creating multiple instances when hot reloading in development environment
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };

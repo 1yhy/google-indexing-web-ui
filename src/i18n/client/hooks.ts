@@ -2,7 +2,7 @@ import { useTranslations as useNextIntlTranslations } from "next-intl";
 import { namespaces, Namespace } from "../config";
 
 /**
- * 创建带有命名空间的翻译 hook
+ * create a translation hook with namespace
  */
 export function createNamespacedTranslations(namespace: Namespace) {
   return () => {
@@ -12,7 +12,7 @@ export function createNamespacedTranslations(namespace: Namespace) {
 }
 
 /**
- * 预定义的领域翻译 hooks
+ * predefined domain translation hooks
  */
 export const translations = Object.entries(namespaces).reduce((acc, [key]) => ({
   ...acc,

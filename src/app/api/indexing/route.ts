@@ -8,11 +8,9 @@ import crypto from "crypto";
 import { Status } from "@/shared/gsc/types";
 import { createLog } from "../logs/service";
 import { auth } from "@/auth";
-import { locales, defaultLocale } from "@/i18n";
 import { t } from "@/i18n";
-import { I18nService } from "@/i18n";
+import { DEFAULT_RECONNECTION_CONFIG, ReconnectionManager } from "@/lib/reconnection";
 
-// 使用 Map 来存储正在处理的请求和其状态
 interface RequestState {
   batchId: string;
   processedUrls: Set<string>;
@@ -20,18 +18,16 @@ interface RequestState {
   isProcessing: boolean;
   lastProgress: number;
   startTime: number;
-  retryCount: number;
+  reconnectionManager: ReconnectionManager;
 }
 
 const activeRequests = new Map<string, RequestState>();
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 5000; // 5秒
 
-// 重试函数
+// retry function
 async function retryWithDelay<T>(
   fn: () => Promise<T>,
-  maxRetries: number = MAX_RETRIES,
-  delayMs: number = RETRY_DELAY
+  maxRetries: number = DEFAULT_RECONNECTION_CONFIG.maxRetries,
+  delayMs: number = DEFAULT_RECONNECTION_CONFIG.retryDelay
 ): Promise<T> {
   let lastError: any;
   for (let i = 0; i < maxRetries; i++) {
@@ -48,26 +44,24 @@ async function retryWithDelay<T>(
 }
 
 async function handleIndexing(appId: string, rawUrls: string[] = [], saveLog: boolean = true, requestId: string) {
-  // 检查是否存在进行中的请求
   let requestState = activeRequests.get(requestId);
   const isReconnection = !!requestState;
 
   if (!requestState) {
-    // 新请求：初始化状态
     requestState = {
       batchId: crypto.randomUUID(),
-      processedUrls: new Set<string>(),
-      urlStatuses: new Map<string, Status>(),
-      isProcessing: true,
+      processedUrls: new Set(),
+      urlStatuses: new Map(),
+      isProcessing: false,
       lastProgress: 0,
       startTime: Date.now(),
-      retryCount: 0
+      reconnectionManager: new ReconnectionManager()
     };
     activeRequests.set(requestId, requestState);
   }
 
   return createSSEResponse(async (sse) => {
-    // 创建日志函数
+    // create log function
     const log = async (type: LogType, message: string, url?: string, status?: string, data?: any) => {
       if (saveLog) {
         await createLog({
@@ -84,7 +78,7 @@ async function handleIndexing(appId: string, rawUrls: string[] = [], saveLog: bo
     };
 
     try {
-      // 如果是重连，发送恢复消息和当前进度
+      // if reconnection, send recovery message and current progress
       if (isReconnection) {
         await log("info", t("logs.reconnected"));
         await log("progress", t("logs.progress", { progress: requestState.lastProgress }), undefined, undefined, {
@@ -93,7 +87,7 @@ async function handleIndexing(appId: string, rawUrls: string[] = [], saveLog: bo
         });
       }
 
-      // 获取应用信息
+      // get app info
       const app = await retryWithDelay(async () => {
         const result = await prisma.app.findUnique({
           where: { id: appId },
@@ -108,7 +102,7 @@ async function handleIndexing(appId: string, rawUrls: string[] = [], saveLog: bo
         await log("info", t("logs.starting"));
       }
 
-      // 解析 JSON Key
+      // parse JSON Key
       let credentials;
       try {
         credentials = JSON.parse(app.jsonKey);
@@ -121,7 +115,7 @@ async function handleIndexing(appId: string, rawUrls: string[] = [], saveLog: bo
         throw new Error(message);
       }
 
-      // 获取访问令牌
+      // get access token
       const accessToken = await retryWithDelay(async () => {
         const token = await getAccessToken(credentials.client_email, credentials.private_key);
         if (!token) {
@@ -134,7 +128,7 @@ async function handleIndexing(appId: string, rawUrls: string[] = [], saveLog: bo
         await log("info", t("logs.tokenObtained"));
       }
 
-      // 验证站点访问权限
+      // verify site access permission
       const domain = app.domain.trim();
       const validSiteUrl = await retryWithDelay(async () => {
         return checkSiteUrl(accessToken, domain);
@@ -144,7 +138,7 @@ async function handleIndexing(appId: string, rawUrls: string[] = [], saveLog: bo
         await log("info", t("logs.siteVerified", { url: validSiteUrl }));
       }
 
-      // 获取要处理的 URLs
+      // get urls to process
       let urls: string[] = [];
 
       if (rawUrls?.length > 0) {
@@ -175,7 +169,7 @@ async function handleIndexing(appId: string, rawUrls: string[] = [], saveLog: bo
       if (urls.length === 0) {
         const message = t("logs.noUrls");
         await log("info", message);
-        // 直接返回结果，不抛出错误
+        // return result directly, do not throw error
         const stats = {
           total: 0,
           indexed: 0,
@@ -185,7 +179,7 @@ async function handleIndexing(appId: string, rawUrls: string[] = [], saveLog: bo
           unknown: 0
         };
 
-        // 保存空统计数据
+        // save empty stats
         await prisma.batchStats.create({
           data: {
             batchId: requestState.batchId,
@@ -195,7 +189,7 @@ async function handleIndexing(appId: string, rawUrls: string[] = [], saveLog: bo
           },
         });
 
-        await log("success", t("logs.completed"), undefined, undefined, {
+        await log("success", t("logs.all_completed"), undefined, undefined, {
           progress: 100,
           stats,
           isCompleted: true,
@@ -204,10 +198,10 @@ async function handleIndexing(appId: string, rawUrls: string[] = [], saveLog: bo
         return;
       }
 
-      // 过滤掉已处理的 URLs
+      // filter out processed urls
       const remainingUrls = urls.filter(url => !requestState!.processedUrls.has(url));
 
-      // 如果所有 URL 都已处理完成，直接返回结果
+      // if all urls are processed, return result directly
       if (remainingUrls.length === 0) {
         const stats = getStats(requestState.urlStatuses);
         await log("success", t("logs.all_completed"), undefined, undefined, {
@@ -219,7 +213,7 @@ async function handleIndexing(appId: string, rawUrls: string[] = [], saveLog: bo
         return;
       }
 
-      // 处理剩余的 URLs
+      // process remaining urls
       await indexUrls(
         credentials.client_email,
         credentials.private_key,
@@ -228,7 +222,7 @@ async function handleIndexing(appId: string, rawUrls: string[] = [], saveLog: bo
         sse,
         appId,
         async (type, message, url, status, data) => {
-          // 更新处理进度
+          // update processing progress
           if (url) {
             requestState!.processedUrls.add(url);
             if (status) {
@@ -236,7 +230,7 @@ async function handleIndexing(appId: string, rawUrls: string[] = [], saveLog: bo
             }
           }
 
-          // 更新进度
+          // update progress
           if (data?.progress) {
             requestState!.lastProgress = data.progress;
           }
@@ -245,7 +239,7 @@ async function handleIndexing(appId: string, rawUrls: string[] = [], saveLog: bo
         },
       );
 
-      // 保存最终的统计数据
+      // save final stats
       const finalStats = getStats(requestState.urlStatuses);
       await prisma.batchStats.upsert({
         where: {
@@ -273,44 +267,58 @@ async function handleIndexing(appId: string, rawUrls: string[] = [], saveLog: bo
         },
       });
 
-      // 发送完成消息
+      // send completion message
       await log("success", t("logs.all_completed"), undefined, undefined, {
         progress: 100,
         stats: finalStats,
         isCompleted: true,
       });
 
-      // 清理请求状态
+      // clean up request state
       activeRequests.delete(requestId);
 
     } catch (error) {
       const message = error instanceof Error ? error.message : t("logs.errors.unknown");
       await log("error", message);
 
-      // 如果是重连且未超过最大重试次数，则尝试重连
-      if (isReconnection && requestState.retryCount < MAX_RETRIES) {
-        requestState.retryCount++;
-        await log("info", t("logs.retrying", { delay: RETRY_DELAY/1000, current: requestState.retryCount, max: MAX_RETRIES }));
+      if (requestState.reconnectionManager.canRetry()) {
+        const delay = requestState.reconnectionManager.getNextDelay();
+        const retryCount = requestState.reconnectionManager.incrementRetry();
+
+        // 发送重连消息给前端
+        await sse.send("reconnect", t("logs.retrying", {
+          delay: delay/1000,
+          current: retryCount,
+          max: DEFAULT_RECONNECTION_CONFIG.maxRetries
+        }), {
+          retryCount,
+          maxRetries: DEFAULT_RECONNECTION_CONFIG.maxRetries,
+          delay
+        });
+
+        // 延迟重试
         setTimeout(() => {
           handleIndexing(appId, rawUrls, saveLog, requestId);
-        }, RETRY_DELAY);
+        }, delay);
         return;
       }
 
+      // 超过重试次数，清理请求状态
+      activeRequests.delete(requestId);
       throw error;
     }
   });
 }
 
-// 获取统计信息的辅助函数
+// helper function to get stats
 function getStats(urlStatuses: Map<string, Status>) {
   return {
     total: urlStatuses.size,
     indexed: Array.from(urlStatuses.values()).filter((s) => s === Status.SubmittedAndIndexed).length,
-    submitted: Array.from(urlStatuses.values()).filter((s) => s === Status.Pending).length,
+    submitted: Array.from(urlStatuses.values()).filter((s) => s === Status.Submitted).length,
     crawled: Array.from(urlStatuses.values()).filter((s) => s === Status.CrawledCurrentlyNotIndexed).length,
     error: Array.from(urlStatuses.values()).filter((s) =>
-      [Status.Error, Status.Forbidden, Status.RateLimited, Status.Failed].includes(s),
+      [Status.Error, Status.Forbidden, Status.RateLimited].includes(s),
     ).length,
     unknown: Array.from(urlStatuses.values()).filter((s) =>
       [Status.URLIsUnknownToGoogle, Status.DiscoveredCurrentlyNotIndexed].includes(s),
@@ -331,21 +339,11 @@ export async function GET(request: NextRequest) {
     const saveLog = searchParams.get("saveLog") === "true";
     const requestId = searchParams.get("requestId");
 
-    // 从请求头或 URL 中获取语言设置
-    const locale = searchParams.get("locale") ||
-                  request.headers.get("accept-language")?.split(",")[0]?.split("-")[0] ||
-                  defaultLocale;
-
-    // 验证语言是否支持
-    const finalLocale = (locales as readonly string[]).includes(locale) ? locale : defaultLocale;
-    // 设置系统语言
-    I18nService.setSystemLocale(finalLocale as any);
-
     if (!appId || !requestId) {
       return new NextResponse(t("common.errors.missingParams"), { status: 400 });
     }
 
-    // 验证应用所有权
+    // verify app ownership
     const app = await prisma.app.findUnique({
       where: { id: appId },
       select: { userId: true },
@@ -371,13 +369,6 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { appId, urls: rawUrls, saveLog = true, requestId } = body;
-
-    // 从请求头或 URL 中获取语言设置
-    const locale = request.headers.get("accept-language")?.split(",")[0]?.split("-")[0] || defaultLocale;
-    // 验证语言是否支持
-    const finalLocale = (locales as readonly string[]).includes(locale) ? locale : defaultLocale;
-    // 设置系统语言
-    I18nService.setSystemLocale(finalLocale as any);
 
     if (!appId) {
       return NextResponse.json({ error: t("common.errors.missingAppId") }, { status: 400 });

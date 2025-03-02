@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { locales, timeZone, dateTimeFormats } from "./index";
 
 export default getRequestConfig(async ({ locale }) => {
-  // 验证语言参数
+  // validate language parameter
   if (!locales.includes(locale as any)) {
     notFound();
   }

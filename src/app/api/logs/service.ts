@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { Status } from "@/shared/gsc/types";
 import { LogType } from "@/lib/sse";
+import { t } from "@/i18n";
 
 export interface CreateLogParams {
   batchId: string;
@@ -13,7 +14,7 @@ export interface CreateLogParams {
 }
 
 /**
- * 创建日志记录
+ * create log record
  */
 export async function createLog({ batchId, appId, type, message, url, status, timestamp }: CreateLogParams) {
   return prisma.indexLog.create({
@@ -30,168 +31,138 @@ export async function createLog({ batchId, appId, type, message, url, status, ti
 }
 
 /**
- * 获取日志列表
+ * get log list
  */
 export async function getLogs({
+  userId,
   appId,
   batchId,
   limit = 100,
   offset = 0,
 }: {
-  appId: string;
+  userId: string;
+  appId?: string;
   batchId?: string;
   limit?: number;
   offset?: number;
 }) {
-  // 获取批次列表
-  const batches = await prisma.indexLog.groupBy({
-    by: ["batchId"],
-    where: {
-      appId,
-      ...(batchId ? { batchId } : {}),
-      // 只统计有 URL 的日志
-      url: {
-        not: "",
-      },
-    },
-    _count: {
-      url: true,
-    },
-    orderBy: {
-      _max: {
-        timestamp: "desc",
-      },
-    },
-    take: limit,
-    skip: offset,
-  });
+  // get all app ids of user
+  const userAppIds = (await prisma.app.findMany({
+    where: { userId },
+    select: { id: true },
+  })).map(app => app.id);
 
-  // 获取每个批次的详细信息
-  const batchesWithDetails = await Promise.all(
-    batches.map(async (batch) => {
-      // 获取批次的第一条日志，用于获取时间戳
-      const firstLog = await prisma.indexLog.findFirst({
-        where: {
-          batchId: batch.batchId,
-          // 确保是有效的日志
-          url: {
-            not: "",
+  if (userAppIds.length === 0) {
+    return { batches: [], total: 0 };
+  }
+
+  // if appId is specified, verify permission
+  if (appId && !userAppIds.includes(appId)) {
+    throw new Error(t("common.errors.unauthorized"));
+  }
+
+  const targetAppIds = appId ? [appId] : userAppIds;
+
+  // use subquery to get paginated batch ids
+  const batchIdsQuery = await prisma.$queryRaw<{ batchId: string }[]>`
+    WITH BatchTimestamps AS (
+      SELECT "batchId", MAX("timestamp") as last_activity
+      FROM "IndexLog"
+      WHERE "appId" = ANY(${targetAppIds})
+        AND "url" != ''
+        AND "batchId" IS NOT NULL
+      GROUP BY "batchId"
+    )
+    SELECT "batchId"
+    FROM BatchTimestamps
+    ORDER BY last_activity DESC
+    LIMIT ${limit}
+    OFFSET ${offset}
+  `;
+
+  const batchIds = batchIdsQuery.map(b => b.batchId).filter(Boolean);
+
+  // get all needed data
+  const [batchesData, batchStats, totalBatches] = await Promise.all([
+    // get batch basic info and logs
+    prisma.indexLog.findMany({
+      where: {
+        batchId: { in: batchIds },
+      },
+      orderBy: { timestamp: "asc" },
+      include: {
+        app: {
+          select: {
+            domain: true,
+            name: true,
           },
         },
-        orderBy: { timestamp: "asc" },
-        select: { timestamp: true },
-      });
-
-      // 获取应用信息
-      const app = await prisma.app.findUnique({
-        where: { id: appId },
-        select: { domain: true },
-      });
-
-      // 统计各种状态的URL数量
-      const statusCounts = {
-        total: 0,
-        indexed: 0,
-        submitted: 0,
-        crawled: 0,
-        error: 0,
-        unknown: 0,
-      };
-
-      // 获取批次的所有日志
-      const logs = await prisma.indexLog.findMany({
-        where: {
-          batchId: batch.batchId,
-          // 只查询有 URL 的日志
-          url: {
-            not: ""
-          }
-        },
-        orderBy: { timestamp: "desc" },
-        distinct: ["url"], // 每个URL只取最新的状态
-      });
-
-      // 计算总数（去重后的URL数量）
-      statusCounts.total = logs.length;
-
-      // 调试日志
-      console.log(
-        `批次 ${batch.batchId} 的日志:`,
-        logs.map((log) => ({
-          url: log.url,
-          status: log.status,
-          timestamp: log.timestamp
-        })),
-      );
-
-      // 统计每个URL的最终状态
-      logs.forEach((log) => {
-        const status = log.status.toUpperCase();
-        console.log(`处理日志状态: ${status} for URL: ${log.url}`);
-
-        switch (status) {
-          case Status.SubmittedAndIndexed:
-          case Status.Success:
-            statusCounts.indexed++;
-            break;
-          case Status.Pending:
-            statusCounts.submitted++;
-            break;
-          case Status.CrawledCurrentlyNotIndexed:
-            statusCounts.crawled++;
-            break;
-          case Status.Failed:
-          case Status.Error:
-          case Status.Forbidden:
-          case Status.RateLimited:
-            statusCounts.error++;
-            break;
-          case Status.URLIsUnknownToGoogle:
-          case Status.DiscoveredCurrentlyNotIndexed:
-          case Status.Unknown:
-            statusCounts.unknown++;
-            break;
-          default:
-            console.log(`未知状态: ${status} for URL: ${log.url}`);
-            statusCounts.unknown++;
-            break;
-        }
-      });
-
-      // 调试日志
-      console.log(`批次 ${batch.batchId} 的统计:`, {
-        ...statusCounts,
-        timestamp: new Date()
-      });
-
-      return {
-        batchId: batch.batchId,
-        appId,
-        domain: app?.domain || "",
-        timestamp: firstLog?.timestamp || new Date(),
-        stats: statusCounts,
-      };
+      },
     }),
+    // get batch stats
+    prisma.batchStats.findMany({
+      where: {
+        batchId: { in: batchIds },
+      },
+    }),
+    // get total batch count
+    prisma.$queryRaw<[{ count: number }]>`
+      SELECT COUNT(DISTINCT "batchId") as count
+      FROM "IndexLog"
+      WHERE "appId" = ANY(${targetAppIds})
+        AND "url" != ''
+        AND "batchId" IS NOT NULL
+    `,
+  ]);
+
+  // organize data by batch id
+  const batchesMap = new Map();
+  batchesData.forEach(log => {
+    if (!batchesMap.has(log.batchId)) {
+      batchesMap.set(log.batchId, {
+        batchId: log.batchId,
+        appId: log.appId,
+        appName: log.app.name,
+        domain: log.app.domain,
+        timestamp: log.timestamp.toISOString(),
+        logs: [],
+        stats: {
+          total: 0,
+          indexed: 0,
+          submitted: 0,
+          crawled: 0,
+          error: 0,
+          unknown: 0,
+        },
+      });
+    }
+    batchesMap.get(log.batchId).logs.push({
+      type: log.type,
+      message: log.message || "",
+      timestamp: log.timestamp.toISOString(),
+    });
+  });
+
+  // add stats
+  batchStats.forEach(stats => {
+    if (batchesMap.has(stats.batchId)) {
+      batchesMap.get(stats.batchId).stats = {
+        total: stats.total,
+        indexed: stats.indexed,
+        submitted: stats.submitted,
+        crawled: stats.crawled,
+        error: stats.error,
+        unknown: stats.unknown,
+      };
+    }
+  });
+
+  const total = Number(totalBatches[0]?.count || 0);
+
+  // sort batches by time in descending order
+  const batches = Array.from(batchesMap.values()).sort((a, b) =>
+    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
 
-  const total = await prisma.indexLog
-    .groupBy({
-      by: ["batchId"],
-      where: {
-        appId,
-        // 只统计有 URL 的日志
-        url: {
-          not: "",
-        },
-      },
-      _count: true,
-    })
-    .then((result) => result.length);
-
-  return {
-    batches: batchesWithDetails,
-    total,
-    limit,
-    offset,
-  };
+  return { batches, total };
 }

@@ -10,11 +10,11 @@ const createChunks = <T>(arr: T[], size: number) =>
   Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size));
 
 /**
- * 批量处理数组中的元素
- * @param processor 处理单个元素的函数
- * @param items 要处理的元素数组
- * @param batchSize 每批处理的元素数量
- * @param onBatchComplete 每批处理完成的回调函数
+ * batch process elements in array
+ * @param processor function to process single element
+ * @param items array of elements to process
+ * @param batchSize number of elements to process in each batch (default is 50)
+ * @param onBatchComplete callback function when each batch is processed (optional)
  */
 export async function batch<T>(
   processor: (item: T) => Promise<void>,

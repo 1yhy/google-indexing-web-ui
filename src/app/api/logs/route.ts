@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { t } from "@/i18n";
 
 /**
- * 创建日志记录
+ * create log record
  */
 export async function POST(request: NextRequest) {
   try {
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * 获取日志列表
+ * get log list
  */
 export async function GET(request: NextRequest) {
   try {
@@ -29,26 +29,20 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const appId = searchParams.get("appId");
+    const appId = searchParams.get("appId") || undefined;
     const batchId = searchParams.get("batchId") || undefined;
     const limit = parseInt(searchParams.get("limit") || "100");
     const offset = parseInt(searchParams.get("offset") || "0");
 
-    if (!appId) {
-      return NextResponse.json({ error: t("common.errors.missingAppId") }, { status: 400 });
-    }
-
-    // 验证应用所有权
-    const app = await prisma.app.findUnique({
-      where: { id: appId },
-      select: { userId: true },
+    // 获取日志数据
+    const result = await getLogs({
+      userId: session.user.id,
+      appId,
+      batchId,
+      limit,
+      offset,
     });
 
-    if (!app || app.userId !== session.user.id) {
-      return NextResponse.json({ error: t("common.errors.unauthorized") }, { status: 403 });
-    }
-
-    const result = await getLogs({ appId, batchId, limit, offset });
     return NextResponse.json(result);
   } catch (error) {
     console.error(t("logs.errors.getFailed"), error);

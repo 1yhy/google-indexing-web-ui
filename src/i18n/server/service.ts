@@ -3,14 +3,14 @@ import { translators } from "./translator";
 import type { Translator } from "./types";
 
 /**
- * 简化的翻译函数
- * @param key 使用点号分隔的完整翻译键，如 'logs.errors.publishMetadataFailed'
- * @param params 可选的参数对象
- * @returns 翻译后的文本
+ * simplified translation function
+ * @param key translation key separated by dots, e.g. 'logs.errors.publishMetadataFailed'
+ * @param params optional parameter object
+ * @returns translated text
  */
 export const t = (key: string, params?: Record<string, any>): string => {
   const [ns, ...paths] = key.split('.');
-  // 类型守卫：检查是否是有效的命名空间
+  // type guard: check if it is a valid namespace
   const isValidNamespace = (ns: string): ns is Namespace =>
     Object.values(namespaces).includes(ns as Namespace);
 
@@ -22,8 +22,8 @@ export const t = (key: string, params?: Record<string, any>): string => {
 };
 
 /**
- * 多语言服务类
- * 用于统一处理多语言翻译，避免重复初始化翻译器
+ * multi-language service class
+ * used to handle multi-language translation, avoiding repeated initialization of translators
  */
 export class I18nService {
   private static instance: I18nService;
@@ -37,7 +37,7 @@ export class I18nService {
   }
 
   /**
-   * 获取单例实例
+   * get singleton instance
    */
   public static getInstance(): I18nService {
     if (!I18nService.instance) {
@@ -47,7 +47,7 @@ export class I18nService {
   }
 
   /**
-   * 设置系统语言
+   * set system language
    */
   public static setSystemLocale(locale: Locale): void {
     I18nService.systemLocale = locale;
@@ -57,30 +57,30 @@ export class I18nService {
   }
 
   /**
-   * 获取系统语言
+   * get system language
    */
   public static getSystemLocale(): Locale {
     return I18nService.systemLocale;
   }
 
   /**
-   * 设置当前实例语言（通常不需要直接调用）
+   * set current instance language (usually not directly called)
    */
   private setLocale(locale: Locale): void {
     this.locale = locale;
-    // 清空翻译器缓存，以便重新创建新语言的翻译器
+    // clear translator cache to create new translator for new language
     this.translators = {};
   }
 
   /**
-   * 获取当前语言
+   * get current language
    */
   public getLocale(): Locale {
     return this.locale;
   }
 
   /**
-   * 获取翻译器
+   * get translator
    */
   private getTranslator(namespace: Namespace): Translator {
     if (!this.translators[namespace]) {
@@ -90,7 +90,7 @@ export class I18nService {
   }
 
   /**
-   * 翻译文本
+   * translate text
    */
   public t(namespace: Namespace, key: string, params?: Record<string, any>): string {
     const translator = this.getTranslator(namespace);
@@ -98,8 +98,8 @@ export class I18nService {
   }
 }
 
-// 导出一个便捷的获取翻译实例的函数
+// export a convenient function to get the translation instance
 export const getI18n = () => I18nService.getInstance();
 
-// 导出便捷的设置系统语言函数
+// export a convenient function to set system language
 export const setSystemLocale = (locale: Locale) => I18nService.setSystemLocale(locale);

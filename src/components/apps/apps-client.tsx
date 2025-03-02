@@ -87,7 +87,7 @@ export default function AppsClient({ apps: initialApps }: AppsClientProps) {
       setSelectedApps([]);
       router.refresh();
     } catch (error) {
-      console.error("删除应用失败:", error);
+      console.error("Delete apps failed :", error);
       toast.error(error instanceof Error ? error.message : t("apps.deleteFailed"));
     } finally {
       setIsDeleting(false);
@@ -97,7 +97,7 @@ export default function AppsClient({ apps: initialApps }: AppsClientProps) {
 
   return (
     <div className="p-6">
-      {/* 顶部导航 */}
+      {/* Top navigation */}
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center">
           <Link href={getLocalePath("/indexing")} className="text-gray-500 hover:text-gray-700">
@@ -108,7 +108,7 @@ export default function AppsClient({ apps: initialApps }: AppsClientProps) {
         <AddAppDialog onSuccess={() => router.refresh()} />
       </div>
 
-      {/* 搜索和操作区域 */}
+      {/* Search and operation area */}
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center space-x-4">
           <Input
@@ -132,7 +132,7 @@ export default function AppsClient({ apps: initialApps }: AppsClientProps) {
         </div>
       </div>
 
-      {/* 应用列表表格 */}
+      {/* App list table */}
       <div className="overflow-hidden rounded-lg border">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">

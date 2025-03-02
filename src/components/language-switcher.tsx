@@ -18,7 +18,7 @@ export function LanguageSwitcher() {
   const t = useTranslations("common");
 
   const handleLocaleChange = (locale: Locale) => {
-    // 保持当前路径，只改变语言
+    // keep current path, only change language
     router.replace(pathname, { locale });
   };
 

@@ -30,7 +30,7 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 天
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   callbacks: {
     async jwt({ token, user }) {
@@ -46,12 +46,12 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
-      // 处理登录成功后的重定向
+      // Handle redirect after login
       if (url.startsWith(baseUrl)) {
-        // 如果是内部 URL，重定向到默认语言的索引页面
+        // If internal URL, redirect to default language indexing page
         return `/${defaultLocale}/indexing`;
       }
-      // 如果是外部 URL，检查是否是允许的域名
+      // If external URL, check if it's allowed domain
       if (url.startsWith("http")) {
         try {
           const urlObj = new URL(url);
@@ -59,11 +59,11 @@ export const authOptions: NextAuthOptions = {
             return url;
           }
         } catch {
-          // URL 解析失败，返回默认路径
+          // URL parsing failed, return default path
           return `/${defaultLocale}/indexing`;
         }
       }
-      // 其他情况返回默认路径
+      // Other cases return default path
       return `/${defaultLocale}/indexing`;
     },
   },

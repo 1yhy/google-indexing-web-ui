@@ -1,13 +1,20 @@
 import { NextResponse } from "next/server";
 import { t } from "@/i18n";
 
-export type LogType = "info" | "error" | "success" | "progress" | "warning";
+export type LogType = "info" | "error" | "success" | "progress" | "warning" | "reconnect";
+
+export interface ReconnectMessage {
+  retryCount: number;
+  maxRetries: number;
+  delay: number;
+}
 
 export interface LogMessage {
   type: LogType;
   message: string;
   data?: any;
   timestamp: string;
+  reconnect?: ReconnectMessage;
 }
 
 export class SSEHandler {
@@ -27,7 +34,7 @@ export class SSEHandler {
   private startFlushInterval() {
     this.flushInterval = setInterval(() => {
       this.flushMessages();
-    }, 100); // 每 100ms 刷新一次消息队列
+    }, 100); // flush message queue every 100ms
   }
 
   private async flushMessages() {
@@ -38,7 +45,7 @@ export class SSEHandler {
       try {
         const encodedMessage = this.encoder.encode(`data: ${JSON.stringify(message)}\n\n`);
         this.controller.enqueue(encodedMessage);
-        // 同时输出到服务端控制台，使用固定格式
+        // output to server console, using fixed format
         console.log(
           `[${new Date(message.timestamp).toLocaleTimeString()}] [${message.type.toUpperCase()}] ${
             message.message
@@ -61,7 +68,7 @@ export class SSEHandler {
     };
 
     try {
-      // 只添加到消息队列，由 flushMessages 统一发送
+      // only add to message queue, flushed by flushMessages
       this.messages.push(event);
       this.messageQueue.push(event);
     } catch (error) {
@@ -78,7 +85,7 @@ export class SSEHandler {
 
     try {
       this.isClosed = true;
-      await this.flushMessages(); // 确保所有消息都被发送
+      await this.flushMessages(); // ensure all messages are sent
       if (this.flushInterval) {
         clearInterval(this.flushInterval);
       }
@@ -88,7 +95,7 @@ export class SSEHandler {
     }
   }
 
-  // 添加公共方法检查状态
+  // add public method to check status
   isConnectionClosed(): boolean {
     return this.isClosed;
   }

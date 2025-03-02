@@ -3,7 +3,7 @@ export const locales = ["en", "zh"] as const;
 export type Locale = (typeof locales)[number];
 export const defaultLocale = "en";
 
-// 命名空间定义
+// namespace definition
 export const namespaces = {
   app: "app",
   status: "status",
@@ -17,40 +17,11 @@ export const namespaces = {
 
 export type Namespace = keyof typeof namespaces;
 
-// 全局配置
+// global configuration
 export const timeZone = "Asia/Shanghai";
 
-// 日期时间格式配置
-export const dateTimeFormats = {
-  full: {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  },
-  date: {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  },
-  time: {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  }
-} as const;
+// date time format configuration
+export * from "./datetime";
 
-// 数字格式配置
-export const numberFormats = {
-  precise: {
-    maximumFractionDigits: 2,
-  },
-  percent: {
-    style: "percent",
-    maximumFractionDigits: 1,
-  }
-} as const;
+// number format configuration
+export * from "./number";

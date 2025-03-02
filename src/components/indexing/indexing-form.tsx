@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Terminal } from "@/components/ui/terminal";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
-import { useTranslations, useLocale } from "next-intl";
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n";
 
 interface Props {
@@ -40,7 +40,6 @@ interface Log {
 
 export function IndexingForm({ apps }: Props) {
   const t = useTranslations();
-  const locale = useLocale();
   const [selectedAppId, setSelectedAppId] = useState(apps[0]?.id || "");
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -55,40 +54,102 @@ export function IndexingForm({ apps }: Props) {
   const [logs, setLogs] = useState<Log[]>([]);
   const [urls, setUrls] = useState("");
   const [saveLog, setSaveLog] = useState(true);
+  const [currentRequestId, setCurrentRequestId] = useState<string>("");
+  const eventSourceRef = useRef<EventSource | null>(null);
 
-  async function onSubmit(e: React.FormEvent) {
+  // 清理函数
+  const cleanup = () => {
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+  };
+
+  // 创建新的 SSE 连接
+  const createEventSource = (requestId: string) => {
+    cleanup();
+
+    const eventSource = new EventSource(
+      `/api/indexing?${new URLSearchParams({
+        appId: selectedAppId,
+        urls: urls.length > 0 ? JSON.stringify(urls) : "",
+        saveLog: saveLog.toString(),
+        requestId,
+      })}`,
+    );
+    eventSourceRef.current = eventSource;
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        // handle reconnect message
+        if (data.type === "reconnect") {
+          toast.info(data.message);
+          return;
+        }
+
+        // update logs
+        setLogs((prev) => [...prev, { ...data }]);
+
+        // update progress
+        if (data.data.progress) {
+          const currentProgress = Math.round(data.data.progress);
+          setProgress(currentProgress);
+        }
+
+        // update stats
+        if (data.data.stats) {
+          setStats(data.data.stats);
+        }
+
+        // handle completion
+        if (data.data.isCompleted) {
+          setIsLoading(false);
+          cleanup();
+        }
+      } catch (error) {
+        console.error("Error processing SSE message:", error);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error("SSE connection error:", error);
+
+      // if connection closed and still loading, show error toast
+      if (eventSource.readyState === EventSource.CLOSED && isLoading) {
+        toast.error(t("common.errors.connectionLost"));
+      }
+    };
+  };
+
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
+    setProgress(0);
+    setLogs([]);
+    setStats({
+      total: 0,
+      indexed: 0,
+      submitted: 0,
+      crawled: 0,
+      error: 0,
+      unknown: 0,
+    });
+
     try {
       if (!selectedAppId) {
         toast.error(t("indexing.errors.selectApp"));
         throw new Error(t("indexing.errors.selectApp"));
       }
 
-      // 防止重复提交
-      if (isLoading) {
-        return;
-      }
-
-      setIsLoading(true);
-      setProgress(0);
-      setStats({
-        total: 0,
-        indexed: 0,
-        submitted: 0,
-        crawled: 0,
-        error: 0,
-        unknown: 0,
-      });
-      setLogs([]);
-
-      // 如果用户手动输入了 URLs，使用用户输入的；否则系统会自动从 Sitemap 获取
+      // if user manually inputs URLs, use user input; otherwise, the system will automatically get from Sitemap
       const urlList = urls
         .split("\n")
         .map((url) => url.trim())
         .filter((url) => url);
 
       if (urlList.length > 0) {
-        // 验证 URL 格式
+        // verify URL format
         const invalidUrls = urlList.filter((url) => {
           try {
             const parsedUrl = new URL(url);
@@ -104,119 +165,29 @@ export function IndexingForm({ apps }: Props) {
           throw new Error(errorMessage);
         }
 
-        // 设置总数
+        // set total
         setStats((prev) => ({ ...prev, total: urlList.length }));
       }
 
-      // 生成唯一的请求 ID
+      // generate new request ID
       const requestId = crypto.randomUUID();
+      setCurrentRequestId(requestId);
 
-      // 创建 EventSource 连接
-      const eventSource = new EventSource(
-        `/api/indexing?${new URLSearchParams({
-          appId: selectedAppId,
-          urls: urlList.length > 0 ? JSON.stringify(urlList) : "",
-          saveLog: saveLog.toString(),
-          requestId,
-          locale,
-        })}`,
-      );
+      // create SSE connection
+      createEventSource(requestId);
 
-      // 处理消息
-      let isCompleted = false;
-      let reconnectCount = 0;
-      const MAX_RECONNECTS = 3;
-
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-
-          // 如果已经标记完成，不再处理新消息
-          if (isCompleted) {
-            eventSource.close();
-            return;
-          }
-
-          setLogs((prev) => [
-            ...prev,
-            {
-              ...data,
-              timestamp: new Date().toISOString(),
-            },
-          ]);
-
-          // 更新进度
-          if (data.data?.progress) {
-            const currentProgress = Math.round(data.data.progress);
-            setProgress(currentProgress);
-          }
-
-          // 更新统计信息
-          if (data.data?.stats) {
-            setStats(data.data.stats);
-          }
-
-          // 如果后端标记完成，则更新状态并关闭连接
-          if (data.data?.isCompleted) {
-            isCompleted = true;
-            setIsLoading(false);
-            eventSource.close();
-          }
-        } catch (error) {
-          console.error("处理 SSE 消息时发生错误:", error);
-          setIsLoading(false);
-          eventSource.close();
-        }
-      };
-
-      // 处理错误和重连
-      eventSource.onerror = (error) => {
-        // 如果已经完成，则是正常结束
-        if (isCompleted) {
-          return;
-        }
-
-        // 检查连接状态
-        if (eventSource.readyState === EventSource.CLOSED) {
-          reconnectCount++;
-          console.log(`SSE 连接断开，重试次数: ${reconnectCount}/${MAX_RECONNECTS}`);
-
-          // 如果超过最大重试次数，则停止重试
-          if (reconnectCount >= MAX_RECONNECTS) {
-            console.error("SSE 连接失败，超过最大重试次数");
-            setIsLoading(false);
-            toast.error(t("indexing.errors.sseError"));
-            eventSource.close();
-          }
-        }
-      };
-
-      // 处理重连
-      eventSource.onopen = () => {
-        if (reconnectCount > 0) {
-          console.log("SSE 连接已重新建立");
-        }
-      };
-
-      // 组件卸载时清理
-      return () => {
-        if (!isCompleted && eventSource.readyState !== EventSource.CLOSED) {
-          eventSource.close();
-        }
-        setIsLoading(false);
-      };
     } catch (error) {
+      console.error("Submit error:", error);
+      toast.error(error instanceof Error ? error.message : t("common.errors.unknown"));
       setIsLoading(false);
-      setLogs((prev) => [
-        ...prev,
-        {
-          type: "error",
-          message: error instanceof Error ? error.message : t("indexing.errors.submitFailed"),
-          timestamp: new Date().toISOString(),
-        },
-      ]);
+      cleanup();
     }
-  }
+  };
+
+  // 组件卸载时清理
+  useEffect(() => {
+    return cleanup;
+  }, []);
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">

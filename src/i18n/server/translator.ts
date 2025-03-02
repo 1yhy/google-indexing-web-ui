@@ -4,33 +4,33 @@ import type { TranslatorOptions, Translator } from "./types";
 import zhMessages from "@/messages/zh.json";
 import enMessages from "@/messages/en.json";
 
-// 支持的语言消息映射
+// supported language message mapping
 const messages = {
   zh: zhMessages,
   en: enMessages,
 } as const;
 
-// 从消息文件中提取所有可能的键
+// extract all possible keys from message files
 type NestedKeyOf<T> = T extends object
   ? { [K in keyof T]: T[K] extends object ? `${K & string}.${NestedKeyOf<T[K]> & string}` : K }[keyof T]
   : never;
 
 export type MessageKeys = NestedKeyOf<typeof zhMessages>;
 
-// 翻译器缓存
+// translator cache
 const translatorCache = new Map<string, Translator>();
 
-// 获取缓存键
+// get cache key
 const getCacheKey = (locale: string, namespace?: string) => `${locale}:${namespace || 'default'}`;
 
 /**
- * 创建翻译器实例
+ * create translator instance
  */
 export function createTranslator(options: TranslatorOptions = {}): Translator {
   const { locale = defaultLocale, namespace } = options;
   const finalLocale = (locale in messages) ? locale as Locale : defaultLocale;
 
-  // 检查缓存
+  // check cache
   const cacheKey = getCacheKey(finalLocale, namespace);
   const cachedTranslator = translatorCache.get(cacheKey);
   if (cachedTranslator) {
@@ -40,7 +40,7 @@ export function createTranslator(options: TranslatorOptions = {}): Translator {
   const translator = createNextIntlTranslator({
     messages: messages[finalLocale],
     locale: finalLocale,
-    // 允许动态键名
+    // allow dynamic key names
     onError: (error) => {
       console.warn(`Translation warning for locale ${finalLocale}:`, error);
       return options.fallback || '';
@@ -65,21 +65,21 @@ export function createTranslator(options: TranslatorOptions = {}): Translator {
     namespace
   };
 
-  // 缓存翻译器实例
+  // cache translator instance
   translatorCache.set(cacheKey, wrappedTranslator);
 
   return wrappedTranslator;
 }
 
 /**
- * 创建特定领域的翻译器
+ * create translator for specific domain
  */
 export function createDomainTranslator(namespace: Namespace) {
   return (locale: Locale = defaultLocale) => createTranslator({ locale, namespace });
 }
 
 /**
- * 预定义的领域翻译器
+ * predefined domain translators
  */
 export const translators = Object.entries(namespaces).reduce((acc, [key, value]) => ({
   ...acc,
@@ -87,7 +87,7 @@ export const translators = Object.entries(namespaces).reduce((acc, [key, value])
 }), {} as Record<Namespace, ReturnType<typeof createDomainTranslator>>);
 
 /**
- * 清除翻译器缓存
+ * clear translator cache
  */
 export function clearTranslatorCache() {
   translatorCache.clear();

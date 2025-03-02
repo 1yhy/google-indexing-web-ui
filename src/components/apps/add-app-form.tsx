@@ -28,7 +28,7 @@ export default function AddAppForm({ onSuccess }: AddAppFormProps) {
       const credentials = formData.get("credentials") as string;
       const domain = formData.get("domain") as string;
 
-      // 验证JSON格式
+      // verify JSON format
       try {
         JSON.parse(credentials);
       } catch (error) {
@@ -56,10 +56,10 @@ export default function AddAppForm({ onSuccess }: AddAppFormProps) {
 
       toast.success(t("apps.addSuccess"));
 
-      // 重置表单
+      // reset form
       form.reset();
 
-      // 调用成功回调
+      // call success callback
       onSuccess?.();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t("apps.addFailed"));
